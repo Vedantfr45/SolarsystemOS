@@ -73,6 +73,11 @@ dd{margin:0;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywh
 .now span{display:flex;justify-content:space-between;gap:12px;font-variant-numeric:tabular-nums}
 .now span i{font-style:normal;color:var(--dim)}
 .note{color:var(--dim);font-size:10px;line-height:1.6}
+.carry{display:flex;flex-direction:column;gap:12px}
+.carry b{font-weight:400;color:var(--sun);font-size:9px;letter-spacing:.16em;text-transform:uppercase}
+.carry div{border-top:1px solid var(--line);padding-top:10px;line-height:1.6}
+.carry div i{display:block;font-style:normal;color:var(--dim);font-size:9px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:3px}
+.now span.next i{color:var(--sun)}
 
 #veil{position:fixed;inset:0;background:var(--void);display:grid;place-items:center;transition:opacity 1.4s;pointer-events:none;font-family:var(--display);font-style:italic;font-size:20px;color:var(--dim)}
 #veil.gone{opacity:0}
@@ -121,7 +126,9 @@ dd{margin:0;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywh
   <p id="s-text"></p>
   <dl id="s-facts"></dl>
   <div class="now" id="s-now"></div>
-  <div class="note">Every body sits at its true direction from the Sun for the date shown, computed from JPL orbital elements. Distances and sizes are compressed so the whole system fits on one screen. Earth and Moon surfaces are image maps based on NASA data, via the three.js examples, and the star backdrop is a real panorama of the Milky Way sky. The asteroid belt, the galaxies and the cosmic web are generated models: galaxy directions follow real measurements with distances compressed, and the belt is drawn far denser than it is.</div>
+  <div class="now" id="s-miles" hidden></div>
+  <div class="carry" id="s-carry" hidden></div>
+  <div class="note" id="s-note">Every body sits at its true direction from the Sun for the date shown, computed from JPL orbital elements. Distances and sizes are compressed so the whole system fits on one screen. Earth and Moon surfaces are image maps based on NASA data, via the three.js examples, and the star backdrop is a real panorama of the Milky Way sky. The asteroid belt, the galaxies and the cosmic web are generated models: galaxy directions follow real measurements with distances compressed, and the belt is drawn far denser than it is.</div>
 </aside>
 
 <nav class="scale" id="scale" aria-label="Scale of view"></nav>
@@ -130,6 +137,7 @@ dd{margin:0;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywh
 <div id="veil">Aligning the planets…</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script>
 (function(){
 const veil=document.getElementById('veil');
@@ -196,6 +204,32 @@ const INFO={
   facts:[['Diameter','93 billion light-years'],['Age','13.8 billion years'],['Galaxies','Up to 2 trillion'],['Ordinary matter','About 5%'],['Dark matter','About 27%'],['Dark energy','About 68%']]}
 };
 const byId={};BODIES.forEach(b=>byId[b.id]=b);
+
+/* ---------- Voyager probes ---------- */
+// Path: Earth at launch, then each planet on its flyby date, then a straight run outward at today's speed.
+// Outbound direction (heliocentric ecliptic lon/lat) and distance on tRef are approximate public figures from NASA/JPL.
+const YR=31557600000,AUYR=31557600/AU_KM,LDAY=86400*299792.458/AU_KM;
+const CARRY=[
+ ['The Golden Record','A 30 cm gold-plated copper disc with 115 images, spoken greetings in 55 languages, 90 minutes of music from around the world and the sounds of Earth. A stylus rides along, and the cover is etched with instructions for playing it.'],
+ ['Ten science instruments','Two television cameras, infrared and ultraviolet spectrometers, a photopolarimeter, a magnetometer, plasma, cosmic ray and low-energy charged particle detectors, and planetary radio and plasma wave receivers. Most are now switched off to save power.'],
+ ['Three nuclear batteries','Radioisotope thermoelectric generators turning the heat of decaying plutonium-238 into about 470 watts at launch. They lose roughly 4 watts a year, so NASA expects the last instruments to fall silent in the early 2030s.'],
+ ['A 3.7 m radio dish','It talks to NASA’s Deep Space Network with a 23 watt transmitter, about as much as a fridge bulb. Commands are stored on computers with roughly 69 kilobytes of memory.']
+];
+const PROBES=[
+ {id:'voyager1',name:'Voyager 1',kind:'Interstellar probe',r:1.3,
+  launch:Date.UTC(1977,8,5,12,56),lon:256.0,lat:34.9,rRef:169.3,tRef:Date.UTC(2026,0,1),kms:16.99,
+  enc:[['jupiter',Date.UTC(1979,2,5)],['saturn',Date.UTC(1980,10,12)]],hp:Date.UTC(2012,7,25),
+  heading:'Toward Ophiuchus',star:['Gliese 445','1.6 light-years'],
+  text:'The farthest object humans have ever made. After Jupiter and Saturn it climbed out of the plane of the planets, and in 2012 it became the first spacecraft to cross the heliopause, the edge of the Sun’s wind, into interstellar space.',
+  facts:[['Launched','5 Sep 1977'],['Rocket','Titan IIIE-Centaur'],['Length','13 m boom, tip to body'],['Dish','3.7 m across'],['Mass','722 kg'],['Speed','17.0 km/s from the Sun'],['Flybys','Jupiter, Saturn'],['Left the heliosphere','25 Aug 2012, 121.6 AU']]},
+ {id:'voyager2',name:'Voyager 2',kind:'Interstellar probe',r:1.3,
+  launch:Date.UTC(1977,7,20,14,29),lon:289.6,lat:-38.7,rRef:142.2,tRef:Date.UTC(2026,0,1),kms:15.37,
+  enc:[['jupiter',Date.UTC(1979,6,9)],['saturn',Date.UTC(1981,7,25)],['uranus',Date.UTC(1986,0,24)],['neptune',Date.UTC(1989,7,25)]],hp:Date.UTC(2018,10,5),
+  heading:'Toward Pavo and Telescopium',star:['Ross 248','1.7 light-years'],
+  text:'The only spacecraft ever to visit Uranus and Neptune, completing a grand tour of all four giant planets. It launched sixteen days before its twin but on a slower path, and it crossed into interstellar space six years after Voyager 1.',
+  facts:[['Launched','20 Aug 1977'],['Rocket','Titan IIIE-Centaur'],['Length','13 m boom, tip to body'],['Dish','3.7 m across'],['Mass','722 kg'],['Speed','15.4 km/s from the Sun'],['Flybys','Jupiter, Saturn, Uranus, Neptune'],['Left the heliosphere','5 Nov 2018, 119 AU']]}
+];
+PROBES.forEach(p=>byId[p.id]=p);
 
 /* ---------- ephemeris ---------- */
 function centuries(ms){return (ms/86400000+2440587.5-2451545)/36525;}
@@ -425,12 +459,69 @@ function orbitLine(id,T){
   const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xece7dc,transparent:true,opacity:.22}));
   l.visible=false;scene.add(l);byId[id].orbit=l;byId[id].trail=trail(TN);scene.add(byId[id].trail);return l;
 }
+function radial(p,t){const r=p.rRef+p.kms*AUYR*(t-p.tRef)/YR;return [p.dir[0]*r,p.dir[1]*r,p.dir[2]*r];}
+function probeAU(p,t){
+  const w=p.way;if(t<=w[0][0])return w[0][1].slice();
+  for(let i=1;i<w.length;i++)if(t<w[i][0]){const a=w[i-1][1],b=w[i][1],f=(t-w[i-1][0])/(w[i][0]-w[i-1][0]);return [a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f];}
+  return radial(p,t);
+}
+function fromEarth(p,t){const a=probeAU(p,t),e=helio('earth',centuries(t));return Math.hypot(a[0]-e[0],a[1]-e[1],a[2]-e[2]);}
+function probeModel(){ // simple stand-in, used until (or if) the NASA model loads
+  const g=new THREE.Group(),grey=new THREE.MeshStandardMaterial({color:0x9c9890,roughness:1,side:THREE.DoubleSide}),gold=new THREE.MeshStandardMaterial({color:0xb08a3e,roughness:.5,metalness:.5}),dark=new THREE.MeshStandardMaterial({color:0x3a3a3e,roughness:.7});
+  const add=(geo,mat,x,y,z,rx,rz)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);m.rotation.set(rx||0,0,rz||0);g.add(m);return m;};
+  add(new THREE.CylinderGeometry(.9,.9,.47,10),dark,0,0,0);
+  add(new THREE.SphereGeometry(2.6,40,8,0,6.2832,0,.78),grey,0,3.0,0,Math.PI);
+  add(new THREE.CylinderGeometry(.04,.04,13,6),gold,-6.6,-.1,0,0,Math.PI/2);
+  add(new THREE.CylinderGeometry(.03,.03,2.6,6),grey,1.9,-.1,-.9,0,Math.PI/2.4);
+  add(new THREE.CylinderGeometry(.22,.22,1.6,10),dark,3.3,-.6,-1.3,0,Math.PI/2.4);
+  add(new THREE.CylinderGeometry(.03,.03,2.4,6),grey,1.7,.2,1.1,0,Math.PI/2.2);
+  add(new THREE.BoxGeometry(.6,.5,.5),dark,2.9,.3,1.6);
+  return g;
+}
+function fitModel(m,size){ // centre on the bounding box and scale the longest side to `size`
+  const box=new THREE.Box3().setFromObject(m),c=box.getCenter(new THREE.Vector3()),s=box.getSize(new THREE.Vector3());
+  const k=size/Math.max(s.x,s.y,s.z),w=new THREE.Group();m.position.sub(c);w.add(m);w.scale.setScalar(k);return w;
+}
+const PN=240,UP=new THREE.Vector3(0,1,0);
+function buildProbe(p){
+  const L=p.lon*D2R,B=p.lat*D2R;p.dir=[Math.cos(B)*Math.cos(L),Math.cos(B)*Math.sin(L),Math.sin(B)];
+  p.way=[[p.launch,helio('earth',centuries(p.launch))]].concat(p.enc.map(e=>[e[1],helio(e[0],centuries(e[1]))]),[[p.hp,radial(p,p.hp)]]);
+  p.ld=p.tRef+(LDAY-p.rRef)/(p.kms*AUYR)*YR-400*864e5;
+  for(let i=0;i<800&&fromEarth(p,p.ld)<LDAY;i++)p.ld+=864e5; // first day it is one light-day from Earth
+  p.oort=p.tRef+(1000-p.rRef)/(p.kms*AUYR)*YR;
+  p.group=new THREE.Group();p.pos=p.group.position;scene.add(p.group);
+  p.holder=new THREE.Group();p.group.add(p.holder);p.model=fitModel(probeModel(),4.2);p.holder.add(p.model);p.nasa=false;
+  p.marker=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex([[0,'rgba(255,255,255,1)'],[.2,'rgba(244,224,74,.9)'],[.5,'rgba(244,224,74,.18)'],[1,'rgba(244,224,74,0)']]),sizeAttenuation:false,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  p.marker.scale.set(.03,.03,1);p.group.add(p.marker);
+  p.hit=new THREE.Mesh(new THREE.SphereGeometry(2.6,12,8),new THREE.MeshBasicMaterial({visible:false}));p.hit.userData.b=p;p.group.add(p.hit);hits.push(p.hit);
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(PN*3),3));
+  p.path=new THREE.Line(g,new THREE.LineBasicMaterial({color:0xf4e04a,transparent:true,opacity:.2,depthWrite:false}));p.path.frustumCulled=false;scene.add(p.path);
+}
+function nasaModel(){
+  if(!THREE.GLTFLoader)return;
+  new THREE.GLTFLoader().load('voyager.glb',gl=>{
+    gl.scene.traverse(o=>{const m=o.material;if(m){if(m.map)m.map.encoding=THREE.LinearEncoding;m.roughness=.85;m.color.setScalar(.8);}});
+    PROBES.forEach((p,i)=>{p.holder.remove(p.model);p.model=fitModel(i?gl.scene.clone():gl.scene,4.2);p.holder.add(p.model);p.nasa=true;});
+    if(cam.focus&&cam.focus.launch)fill(cam.focus);
+  },undefined,()=>{});
+}
+const pv=new THREE.Vector3();
+function placeProbes(){
+  PROBES.forEach(p=>{if(!p.group)return;const on=simTime>=p.launch;p.group.visible=p.path.visible=on;if(!on)return;
+    p.au=probeAU(p,simTime);toScene(p.au,p.pos);
+    p.holder.quaternion.setFromUnitVectors(UP,pv.copy(p.pos).negate().normalize()); // dish faces home
+    const a=p.path.geometry.attributes.position;
+    for(let i=0;i<PN;i++){toScene(probeAU(p,p.launch+(simTime-p.launch)*i/(PN-1)),pv);a.setXYZ(i,pv.x,pv.y,pv.z);}a.needsUpdate=true;
+    const d=camera.position.distanceTo(p.pos);p.marker.material.opacity=ss(25,90,d);p.hit.scale.setScalar(Math.max(1,d*.012));
+    p.path.material.opacity=cam.focus===p?.5:.2;});
+}
 
 /* ---------- time & placement ---------- */
 let simTime=Date.now(),rate=1;
 const AUpos={};let moonTrail=null;const tmp=new THREE.Vector3();
 function place(){
   const T=centuries(simTime);
+  placeProbes();
   for(const id in EL){const p=helio(id,T),b=byId[id];AUpos[id]=p;toScene(p,b.pos);
     if(b.trail){const a=b.trail.geometry.attributes.position,k=helio.k,E=helio.E;
       for(let i=0;i<=TN;i++){toScene(fromE(k,E-i/TN*SPAN),tmp);a.setXYZ(i,tmp.x,tmp.y,tmp.z);}a.needsUpdate=true;}}
@@ -460,7 +551,7 @@ addEventListener('resize',resize);
 
 /* ---------- UI ---------- */
 const nav=document.getElementById('index');
-['sun','mercury','venus','earth','moon','mars','jupiter','saturn','uranus','neptune'].forEach(id=>{
+['sun','mercury','venus','earth','moon','mars','jupiter','saturn','uranus','neptune','voyager1','voyager2'].forEach(id=>{
   const bt=document.createElement('button');bt.textContent=byId[id].name;bt.dataset.id=id;bt.onclick=()=>focusOn(byId[id]);nav.appendChild(bt);
 });
 {const bt=document.createElement('button');bt.textContent='Asteroid belt';bt.dataset.id='belt';bt.onclick=()=>showInfo(INFO.belt,300,.7);nav.insertBefore(bt,nav.children[6]);}
@@ -482,12 +573,33 @@ function fill(b){
   $('s-kind').textContent=b.kind;$('s-name').textContent=b.name;$('s-text').textContent=b.text;
   const dl=$('s-facts');dl.textContent='';
   b.facts.forEach(f=>{const d=document.createElement('div'),t=document.createElement('dt'),v=document.createElement('dd');t.textContent=f[0];v.textContent=f[1];d.append(t,v);dl.appendChild(d);});
+  const pr=!!b.launch;$('s-miles').hidden=$('s-carry').hidden=!pr;
+  $('s-carry').innerHTML=pr?'<b>What it carries</b>'+CARRY.map(c=>'<div><i>'+c[0]+'</i>'+c[1]+'</div>').join(''):'';
+  $('s-note').textContent=pr?'Position follows the real flight: Earth at launch, each planet on its flyby date, then a straight run outward along the probe’s real direction at its current speed. The distance is compressed like everything else on this map, and the probe is drawn millions of times larger than life. '+(b.nasa?'3D model: Voyager Probe (B) from NASA 3D Resources, NASA/JPL-Caltech, free of copyright.':'The NASA 3D model could not load here, so a simple stand-in model is shown.'):NOTE;
   $('s-now').hidden=!cam.focus;$('sheet').scrollTop=0;live(true);
+}
+const NOTE=$('s-note').textContent;
+const pad=n=>String(n).padStart(2,'0');
+function span(ms){let s=Math.floor(Math.abs(ms)/1000);const y=Math.floor(s/31557600);s-=y*31557600;const d=Math.floor(s/86400);s-=d*86400;
+  return (y?y+' y ':'')+d+' d '+pad(Math.floor(s/3600))+':'+pad(Math.floor(s%3600/60))+':'+pad(s%60);}
+const day=t=>new Date(t).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'});
+function probeLive(b){
+  const r=Math.hypot(b.au[0],b.au[1],b.au[2]),e=AUpos.earth,dE=Math.hypot(b.au[0]-e[0],b.au[1]-e[1],b.au[2]-e[2]),lt=dE*499.005;
+  let h='<b>Right now</b>'+row('Since launch',span(simTime-b.launch))+row('From the Sun',r.toFixed(2)+' AU')+row('',(r*AU_KM/1e9).toFixed(2)+' billion km')
+    +row('From Earth',dE.toFixed(2)+' AU')+row('Radio signal takes',Math.floor(lt/3600)+' h '+pad(Math.floor(lt%3600/60))+' m')+row('Speed',b.kms.toFixed(1)+' km/s')+row('Heading',b.heading);
+  $('s-now').innerHTML=h;
+  // milestones: the first one still ahead is marked as next
+  const M=[['Left the heliosphere',b.hp,day(b.hp)],['One light-day from Earth',b.ld,day(b.ld)],['Reaches the Oort cloud, about 1,000 AU',b.oort,'Year '+new Date(b.oort).getUTCFullYear()],['Passes '+b.star[0]+' at '+b.star[1],Date.UTC(1977,0,1)+40000*YR,'In about 40,000 years']];
+  let next=false;h='<b>Milestones</b>';
+  M.forEach(m=>{const ahead=m[1]>simTime,cls=ahead&&!next?' class="next"':'';if(cls)next=true;
+    h+='<span'+cls+'><i>'+(cls?'Next · ':'')+m[0]+'</i>'+m[2]+'</span>'+(m[1]-simTime>1000*YR?'':row('',ahead?'in '+span(m[1]-simTime):span(simTime-m[1])+' ago'));});
+  $('s-miles').innerHTML=h;
 }
 let liveT=0;
 function row(k,v){return '<span><i>'+k+'</i>'+v+'</span>';}
 function live(force){
   const b=cam.focus;if(!b)return;const now=performance.now();if(!force&&now-liveT<250)return;liveT=now;
+  if(b.launch)return probeLive(b);
   let h='<b>Right now</b>';const e=AUpos.earth;
   if(b.id==='sun'){const d=Math.hypot(e[0],e[1],e[2]);h+=row('From Earth',d.toFixed(4)+' AU')+row('Light reaches Earth in',(d*499.005/60).toFixed(2)+' min');}
   else if(b.id==='moon'){const m=moonDir(simTime);const el=((Math.atan2(m[1],m[0])-Math.atan2(-e[1],-e[0]))/D2R%360+360)%360;
@@ -574,7 +686,8 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 setTimeout(()=>{
-  BODIES.forEach(build);
+  BODIES.forEach(build);PROBES.forEach(buildProbe);nasaModel();
+  PROBES.forEach(p=>label(p.name,'Interstellar space',p.pos,2.2,3.9));
   const T=centuries(simTime);for(const id in EL)orbitLine(id,T);
   // Moon's path around Earth
   moonTrail=trail(96);{const a=moonTrail.geometry.attributes.position;for(let i=0;i<=96;i++){const t=i/96*4.4;a.setXYZ(i,Math.cos(t)*5.2,0,Math.sin(t)*5.2);}}
