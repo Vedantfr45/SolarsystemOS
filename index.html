@@ -24,6 +24,7 @@ body{background:var(--void);color:var(--ink);font-family:var(--mono);font-size:1
 canvas#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
 canvas#gl.grabbing{cursor:grabbing}
 canvas#gl.point{cursor:pointer}
+#photo{position:fixed;inset:0;width:100%;height:100%;display:block;pointer-events:none;opacity:0}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:0}
 button:focus-visible{outline:1px solid var(--sun);outline-offset:3px}
 
@@ -96,12 +97,13 @@ body.open .music{opacity:0;pointer-events:none}
 .hud{position:fixed;top:calc(22px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;transition:opacity .4s;white-space:nowrap}
 .hud b{display:block;font-family:var(--display);font-style:italic;font-weight:400;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
 .hud span{display:block;color:var(--dim);font-size:9px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:4px}
+.hud em{display:block;font-style:normal;color:var(--dim);font-size:9px;letter-spacing:.16em;text-transform:uppercase;margin-top:6px}
 .hud i{display:block;font-style:normal;color:var(--sun);font-size:10px;letter-spacing:.06em;margin-top:5px}
 body.open .hud{opacity:0}
-.quote{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;padding:24px;opacity:0;text-align:center}
-.quote div{max-width:min(860px,92vw);text-shadow:0 0 30px var(--void),0 0 12px var(--void)}
-.quote p{margin:0;font-family:var(--display);font-style:italic;font-size:clamp(28px,5vw,64px);line-height:1.08;letter-spacing:-.01em;text-wrap:balance}
-.quote p+p{margin-top:.35em;font-size:clamp(20px,3vw,36px);color:var(--sun)}
+.quote{position:fixed;inset:0;display:grid;place-items:center;pointer-events:none;padding:24px;opacity:0;text-align:center;background:radial-gradient(ellipse at center,rgba(0,0,0,.6),rgba(0,0,0,.2) 75%)}
+.quote div{max-width:min(780px,92vw);padding:clamp(22px,4vw,40px) clamp(22px,5vw,52px);border-radius:20px;background:rgba(4,5,10,.84);border:1px solid rgba(255,255,255,.1);box-shadow:0 30px 90px rgba(0,0,0,.7);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.quote p{margin:0;font-family:var(--display);font-style:italic;font-size:clamp(28px,4.6vw,58px);line-height:1.1;letter-spacing:-.01em;text-wrap:balance;color:#f4f1ea}
+.quote p+p{margin-top:.45em;font-size:clamp(19px,2.6vw,32px);color:var(--sun)}
 .quote small{display:block;margin-top:18px;color:var(--dim);font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase}
 
 #veil{position:fixed;inset:0;background:var(--void);display:grid;place-items:center;transition:opacity 1.4s;pointer-events:none;font-family:var(--display);font-style:italic;font-size:20px;color:var(--dim)}
@@ -134,6 +136,7 @@ body.open .hud{opacity:0}
 <body>
 
 <canvas id="gl" aria-label="Interactive 3D model of the solar system"></canvas>
+<canvas id="photo" aria-hidden="true"></canvas>
 
 <div class="head">
   <div class="mark">Orrery</div>
@@ -171,7 +174,7 @@ body.open .hud{opacity:0}
   <div class="cred"><b>Purpose Is Glorious</b>Natalie Holt · <span>Loki Season 2 score · Marvel Studios / Hollywood Records</span> <em id="m-hint">· tap anywhere to play</em></div>
 </div>
 <audio id="song" src="assets/music/Purpose_Is_Glorious_Loki_S2.mp3" loop preload="auto"></audio>
-<div class="hud" id="hud" aria-live="off"><span>This view is</span><b id="hud-w"></b><i id="hud-you"></i></div>
+<div class="hud" id="hud" aria-live="off"><span>This view is</span><b id="hud-w"></b><i id="hud-you"></i><em id="hud-src"></em></div>
 <div class="quote" id="quote" aria-hidden="true"><div id="quote-in"></div></div>
 <div id="veil">Aligning the planets…</div>
 
@@ -185,7 +188,7 @@ const D2R=Math.PI/180, AU_KM=149597870.7;
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
 
 /* ---------- data ---------- */
-const CITY={name:'New Delhi',country:'India',lat:28.6139,lon:77.209}; // where you stand: change these to put yourself anywhere
+const CITY={name:'New Delhi',country:'India',lat:28.6315,lon:77.2167}; // where you stand, in Connaught Place: change these to move the pin on the globe
 // JPL approximate Keplerian elements (J2000, valid 1800–2050): a, e, I, L, long.peri, long.node + rates per century
 const EL={
  mercury:[0.38709927,0.20563593,7.00497902,252.25032350,77.45779628,48.33076593,0.00000037,0.00001906,-0.00594749,149472.67411175,0.16047689,-0.12534081],
@@ -249,28 +252,28 @@ const INFO={
   text:'In this loop every universe fits inside a single proton. A real proton is three quarks, two up and one down, held together by gluons of the strong force. Most of its mass is the energy of that binding, not the quarks themselves.',
   facts:[['Diameter','About 1.7 femtometres'],['Made of','2 up quarks, 1 down quark'],['Charge','+1'],['Mass','938 MeV, 1.67 × 10⁻²⁷ kg'],['Lifetime','Over 10³⁴ years'],['Held by','Gluons, the strong force']]},
  atom:{id:'atom',name:'Carbon atom',kind:'Element 6',
-  text:'One carbon atom in the DNA of your hand, and the same atom that holds the proton full of universes. Six protons and six neutrons in a nucleus, six electrons around it, and almost nothing else: if the nucleus were a marble, the atom would be a football stadium. It was forged inside a star.',
-  facts:[['Diameter','About 0.3 nanometres'],['Nucleus','About 5 femtometres'],['Protons','6'],['Neutrons','6'],['Electrons','6, in two shells'],['In your body','About 6 × 10²⁶ carbon atoms']]},
+  text:'One carbon atom in the DNA of your hand, and the same atom that holds the proton full of universes. Six protons and six neutrons in a nucleus, and six electrons that do not orbit like planets: they are clouds of probability. Two fill the small round 1s cloud, two the larger 2s, two the dumbbell-shaped 2p, coloured blue and orange by the sign of their wave. The flickering points show where an electron would turn up if you measured it. If the nucleus were a marble, the atom would be a football stadium. It was forged inside a star.',
+  facts:[['Diameter','About 0.3 nanometres'],['Nucleus','About 5 femtometres'],['Protons','6'],['Neutrons','6'],['Electrons','6: 1s² 2s² 2p²'],['In your body','About 6 × 10²⁶ carbon atoms']]},
  dna:{id:'dna',name:'DNA',kind:'Deoxyribonucleic acid',
-  text:'Two strands twisted into a helix, joined by pairs of bases: A with T, C with G. The order of those letters is the recipe for you. Drawn here atom by atom: grey carbon, red oxygen, blue nitrogen, orange phosphorus.',
+  text:'Two strands twisted into a helix, joined by pairs of bases: A with T, C with G. The order of those letters is the recipe for you. Shown the way an atomic force microscope sees it: a fine needle feels its way along the strand, so the colours are height, not colour. Up close you can make out its two grooves and, at last, single atoms.',
   facts:[['Width','2 nanometres'],['One full twist','10.5 base pairs, about 3.5 nm'],['Letters in you','About 3.1 billion pairs'],['Length per cell','About 2 metres, unwound'],['All of yours, end to end','About 70 billion km'],['Shared with any other human','99.9%']]},
  chromosome:{id:'chromosome',name:'Chromosome',kind:'Packaged DNA',
-  text:'Two metres of DNA fit in a nucleus a few thousandths of a millimetre wide by winding around protein spools, then coiling, then coiling again. Shown condensed and colour-coded as they look when a cell divides.',
+  text:'Two metres of DNA fit in a nucleus a few thousandths of a millimetre wide by winding around protein spools, then coiling, then coiling again. Shown as a spectral karyotype: each pair painted with its own fluorescent dye, the way geneticists check that all 46 are there. Any closer and light is too coarse to see, so an electron microscope takes over.',
   facts:[['In each cell','46, in 23 pairs'],['From each parent','23'],['Largest','Chromosome 1, 249 million letters'],['Smallest','Chromosome 21, about 46 million letters'],['Spools','Nucleosomes, 11 nm wide'],['Genes in total','About 20,000']]},
  cell:{id:'cell',name:'White blood cell',kind:'Immune cell',
-  text:'A guard of the immune system, riding your bloodstream among the red cells and squeezing out through vessel walls to hunt bacteria and viruses. Red blood cells have no nucleus and no DNA; this cell has both.',
+  text:'A guard of the immune system, riding your bloodstream among the red cells and squeezing out through vessel walls to hunt bacteria and viruses. Red blood cells have no nucleus and no DNA; this cell has both. It is stained purple here, as in a blood test, so its lobed nucleus shows.',
   facts:[['Diameter','About 12 micrometres'],['Per drop of blood','About 200,000 to 500,000'],['Red cells per drop','About 250 million'],['Lifespan','Hours to years'],['Cells in your body','About 37 trillion'],['Made in','Bone marrow']]},
  vessel:{id:'vessel',name:'Blood vessel',kind:'Arteriole',
-  text:'A small artery under the skin of your hand, about a tenth of a millimetre across. Red blood cells, shaped like dimpled discs, tumble through it single-minded, carrying oxygen from your lungs.',
-  facts:[['Diameter','About 120 micrometres'],['Blood in you','About 5 litres'],['Vessels laid end to end','About 100,000 km'],['That is','Two and a half times round Earth'],['A red cell lives','About 120 days'],['One lap of your body','About a minute']]},
+  text:'A small artery under the skin of your hand, less than a tenth of a millimetre across. Red blood cells, shaped like dimpled discs, tumble through it single-minded, carrying oxygen from your lungs.',
+  facts:[['Diameter','About 80 micrometres'],['Blood in you','About 5 litres'],['Vessels laid end to end','About 100,000 km'],['That is','Two and a half times round Earth'],['A red cell lives','About 120 days'],['One lap of your body','About a minute']]},
  you:{id:'you',name:'You',kind:'Homo sapiens',
-  text:'Standing on a pavement on a small rocky planet, among strangers who each feel like the centre of the world too. Everything in this loop, from atoms to universes, is also in you.',
+  text:'Standing in the plaza at the heart of Connaught Place on a small rocky planet, among strangers who each feel like the centre of the world too. Everything in this loop, from atoms to universes, is also in you.',
   facts:[['Height','About 1.7 m'],['Atoms','About 7 × 10²⁷'],['Cells','About 37 trillion'],['Humans alive','About 8.2 billion'],['Humans ever born','About 117 billion'],['Age of the atoms in you','Mostly over 4.6 billion years']]},
  city:{id:'city',name:CITY.name,kind:'City in '+CITY.country,
-  text:'Roads, towers, wires and lights, all built in the last few centuries by people who were mostly strangers to each other. Change CITY in the code to put yourself somewhere else.',
+  text:'Roads, rooftops, water tanks and trees, all built in the last few centuries by people who were mostly strangers to each other. You stand in Connaught Place, the rings of white colonnades at the city’s heart. Change CITY in the code to move the pin on the globe.',
   facts:[['Metro population','About 33 million'],['Area','About 1,500 km²'],['Latitude',CITY.lat.toFixed(2)+'° N'],['Longitude',CITY.lon.toFixed(2)+'° E'],['Seen from space at night','A web of orange light'],['Buildings drawn','About 5,000']]}
 };
-const LOOPNOTE='The loop is art built on real physics. From your hand down to the atom and from Earth out to the universe, sizes are real or close to it; the multiverse is imagined, and the jump from a proton to universes is poetry, not physics. Everything is drawn in code. Inspired by Charles and Ray Eames’ film Powers of Ten (1977), the closing shot of Men in Black (1997) and Ant-Man’s Quantum Realm.';
+const LOOPNOTE='The loop is art built on real physics. From your hand down to the atom and from Earth out to the universe, sizes are real or close to it; the multiverse is imagined, and the jump from a proton to universes is poetry, not physics. Everything is drawn in code; below the clouds each scale is painted the way a real camera or microscope would show it. Inspired by Charles and Ray Eames’ film Powers of Ten (1977), the closing shot of Men in Black (1997) and Ant-Man’s Quantum Realm.';
 ['multiverse','proton','atom','dna','chromosome','cell','vessel','you','city'].forEach(k=>INFO[k].note=LOOPNOTE);
 const byId={};BODIES.forEach(b=>byId[b.id]=b);
 
@@ -543,36 +546,37 @@ const PH=1.618,ICO=[[0,1,PH],[0,-1,PH],[0,1,-PH],[0,-1,-PH],[1,PH,0],[-1,PH,0],[
 const nucMat=p=>new THREE.MeshStandardMaterial({color:p?0xd8553f:0x8c98b2,emissive:p?0x3a0d08:0x0e121c,roughness:.42,metalness:.08,transparent:true,opacity:0,depthWrite:false});
 const RE1=6e11,RE2=1.55e12;
 const ATOM=(function(){
-  const el=[[RE1,.2,0,1.3],[RE1,1.5,.7,1.3],[RE2,.35,.2,.7],[RE2,1.25,1.9,.7],[RE2,2.1,.9,.7],[RE2,.9,2.7,.7]];
-  const n=9000,pos=new Float32Array(n*3),col=new Float32Array(n*3),sz=new Float32Array(n);
-  for(let i=0;i<n;i++){let p;const u=i/n;
-    if(u<.22){p=[gs()*RE1*.5,gs()*RE1*.5,gs()*RE1*.5];}                       // 1s
-    else if(u<.4){const q=inBall(),k=RE2*(.75+gs()*.12)/(Math.hypot(q[0],q[1],q[2])||1);p=q.map(v=>v*k);} // 2s shell
-    else{const ax=i%3,sd=Math.random()<.5?-1:1,a=sd*(RE2*.3+Math.abs(gs())*RE2*.75);p=[gs()*RE2*.28,gs()*RE2*.28,gs()*RE2*.28];p[ax]=a;} // 2p lobes
-    const b=.25+Math.random()*.5;pos.set(p,i*3);col[i*3]=.35*b;col[i*3+1]=.62*b;col[i*3+2]=b;sz[i]=4e10*(.6+Math.random());}
-  return {el,pos,col,sz,phase:el.map(()=>Math.random()*6.2832)};
+  // carbon's six electrons as clouds of probability, sampled from its real orbitals: two in 1s, two in 2s, two in 2p.
+  // The 2p dumbbells are coloured by the sign of the wavefunction, blue and orange, the way chemistry books draw them.
+  const n=15000,pos=new Float32Array(n*3),col=new Float32Array(n*3),sz=new Float32Array(n),orb=new Uint8Array(n);
+  const gam=m=>{let s=0;for(let i=0;i<m;i++)s-=Math.log(1-Math.random());return s;}; // a Gamma(m) draw
+  const unit=()=>{let p,m;do{p=[Math.random()*2-1,Math.random()*2-1,Math.random()*2-1];m=Math.hypot(p[0],p[1],p[2]);}while(m>1||m<.05);return p.map(v=>v/m);};
+  const a1=RE1*.45,a2=RE2*.21;
+  for(let i=0;i<n;i++){const u=i/n;let r,d,c,o;
+    if(u<.15){r=gam(3)*a1*.5;d=unit();c=[1,.9,.75];o=0;}                                        // 1s: r² e^(-2r/a)
+    else if(u<.37){do{r=(Math.random()<.25?gam(3):gam(5))*a2;}while(Math.random()>(2-r/a2)**2/(4+(r/a2)**2));d=unit();c=[.55,.72,1];o=1;} // 2s, with its node
+    else{const ax=i%3;r=gam(5)*a2;do{d=unit();}while(Math.random()>d[ax]*d[ax]);c=d[ax]>0?[.3,.6,1]:[1,.55,.22];o=2;}       // 2p: r⁴ e^(-r/a) cos²θ
+    const b=(.3+Math.random()*.55)*.32;pos.set(d.map(v=>v*r),i*3);col.set(c.map(v=>v*b),i*3);sz[i]=(o?1.3e11:.8e11)*(.6+Math.random()*.8);orb[i]=o;}
+  const idx=[0,1,2].map(o=>{const l=[];orb.forEach((v,i)=>{if(v===o)l.push(i);});return l;});
+  return {pos,col,sz,idx,flash:[0,0,0,0,0,0],t:1};
 })();
 function makeAtom(k,parent){ // k: scale from realm units to the parent's units
   const a={k},geo=new THREE.SphereGeometry(RN*k,48,32);
   a.centre=new THREE.Mesh(geo,nucMat(true));parent.add(a.centre);
   a.nucleons=ICO.slice(0,11).map((v,i)=>{const m=new THREE.Mesh(geo,nucMat(i%2===1)),n=Math.hypot(v[0],v[1],v[2]);m.position.set(v[0],v[1],v[2]).multiplyScalar(RN*1.94*k/n);parent.add(m);return m;});
   a.halo=glowPoints(new Float32Array(3),new Float32Array([1,.69,.54]),new Float32Array([RN*14*k]),dot);parent.add(a.halo);
-  a.piv=ATOM.el.map(e=>{const piv=new THREE.Group();piv.rotation.set(e[1],0,e[2]);parent.add(piv);
-    const pts=[];for(let i=0;i<=200;i++){const t=i/200*6.2832;pts.push(new THREE.Vector3(Math.cos(t)*e[0]*k,0,Math.sin(t)*e[0]*k));}
-    piv.userData.ring=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x7fb8ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));piv.add(piv.userData.ring);return piv;});
-  a.dots=glowPoints(new Float32Array(18),new Float32Array([.75,.9,1,.75,.9,1,.75,.9,1,.75,.9,1,.75,.9,1,.75,.9,1]),new Float32Array(6).fill(1.8e11*k),dot);parent.add(a.dots);
+  a.dots=glowPoints(new Float32Array(18),new Float32Array(18).fill(1),new Float32Array(6).fill(1.2e11*k),dot);parent.add(a.dots);
   a.cloud=glowPoints(ATOM.pos.map(v=>v*k),ATOM.col,ATOM.sz.map(v=>v*k),dot);parent.add(a.cloud);
   return a;
 }
-const vR=new THREE.Vector3();
 function atomUpdate(a,fc,fn,fh,fe,R){ // opacities: centre nucleon, other nucleons, halo, electrons
   a.centre.visible=fc>.01;a.centre.material.opacity=fc;a.centre.material.depthWrite=fc>.97;
   a.nucleons.forEach(m=>{m.visible=fn>.01;m.material.opacity=fn;m.material.depthWrite=fn>.97;});
   glowFade(a.halo,.5*fh,1e-30);
-  const ep=a.dots.geometry.attributes.position;
-  a.piv.forEach((piv,i)=>{const e=ATOM.el[i],t=ATOM.phase[i];vR.set(Math.cos(t)*e[0]*a.k,0,Math.sin(t)*e[0]*a.k).applyEuler(piv.rotation);ep.setXYZ(i,vR.x,vR.y,vR.z);fade(piv.userData.ring,.28*fe);});
-  ep.needsUpdate=true;glowFade(a.dots,fe,1e-30);glowFade(a.cloud,.6*fe,R*.15);
+  const ep=a.dots.geometry.attributes.position,P=ATOM.pos;ATOM.flash.forEach((j,i)=>ep.setXYZ(i,P[j*3]*a.k,P[j*3+1]*a.k,P[j*3+2]*a.k)); // where each electron would be found, if you looked
+  ep.needsUpdate=true;glowFade(a.dots,.9*fe,1e-30);glowFade(a.cloud,.65*fe,R*.15);
 }
+const vR=new THREE.Vector3();
 const realmAtom=makeAtom(1,realm);
 const realmLight=new THREE.DirectionalLight(0xfff0e0,0);scene.add(realmLight,realmLight.target);
 function updateRealm(L,dt){
@@ -599,95 +603,17 @@ const P_LOOP=Z_B-Z_A,LOOP=Math.pow(10,P_LOOP),R_IN=Math.pow(10,Z_A-ZM),R_OUT=Mat
 const life=new THREE.Scene(),lifeCam=new THREE.PerspectiveCamera(42,1,1,10);
 const lifeTarget=new THREE.Vector3();
 function mat(c,o){return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8,metalness:0},o||{}));}
-function mergeGeos(parts){ // [{geo, m: Matrix4, c: [r,g,b]}] → one non-indexed geometry with vertex colours
-  let n=0;const list=parts.map(p=>{const g=(p.geo.index?p.geo.toNonIndexed():p.geo.clone()).applyMatrix4(p.m);n+=g.attributes.position.count;return [g,p.c];});
-  const pos=new Float32Array(n*3),nor=new Float32Array(n*3),col=new Float32Array(n*3),uv=new Float32Array(n*2);let o=0;
-  list.forEach(([g,c])=>{const k=g.attributes.position.count;pos.set(g.attributes.position.array,o*3);nor.set(g.attributes.normal.array,o*3);
-    if(g.attributes.uv)uv.set(g.attributes.uv.array,o*2);for(let i=0;i<k;i++)col.set(c,(o+i)*3);o+=k;});
-  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(pos,3));g.setAttribute('normal',new THREE.BufferAttribute(nor,3));
-  g.setAttribute('color',new THREE.BufferAttribute(col,3));g.setAttribute('uv',new THREE.BufferAttribute(uv,2));return g;
-}
-const M4=new THREE.Matrix4(),Q4=new THREE.Quaternion(),S4=new THREE.Vector3(),P4=new THREE.Vector3();
-const mtx=(x,y,z,sx,sy,sz,rx,ry,rz)=>M4.clone().compose(P4.set(x,y,z),Q4.setFromEuler(new THREE.Euler(rx||0,ry||0,rz||0)),S4.set(sx,sy,sz));
 function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h||w;draw(c.getContext('2d'),w,h||w);const t=new THREE.CanvasTexture(c);t.anisotropy=8;return t;}
 const rnd=(a,b)=>a+Math.random()*(b-a);
-
-// people: simple jointed figures, a little stylised, each one somebody
-function makeHuman(o){
-  const g=new THREE.Group(),skin=mat(o.skin),top=mat(o.top),legs=mat(o.legs),shoe=mat(o.shoe||0x1b1b1d),hair=mat(o.hair||0x17110d,{roughness:.9});
-  const add=(p,geo,m,x,y,z)=>{const e=new THREE.Mesh(geo,m);e.position.set(x,y,z);p.add(e);return e;};
-  const limb=(r1,r2,len,m,x,y,z)=>{const piv=new THREE.Group();piv.position.set(x,y,z);g.add(piv);add(piv,new THREE.CylinderGeometry(r1,r2,len,10),m,0,-len/2,0);return piv;};
-  g.userData.legL=limb(.072,.052,.88,legs,.095,.92,0);g.userData.legR=limb(.072,.052,.88,legs,-.095,.92,0);
-  [g.userData.legL,g.userData.legR].forEach(l=>add(l,new THREE.BoxGeometry(.1,.07,.26),shoe,0,-.89,.05));
-  add(g,new THREE.CylinderGeometry(.155,.15,.17,14),legs,0,.95,0).scale.set(1,1,.7);
-  add(g,new THREE.CylinderGeometry(.18,.15,.6,14),top,0,1.2,0).scale.set(1,1,.62);
-  add(g,new THREE.SphereGeometry(.18,14,8,0,6.2832,0,1.4),top,0,1.42,0).scale.set(1,.42,.62);
-  add(g,new THREE.CylinderGeometry(.048,.052,.1,10),skin,0,1.53,0);
-  const head=add(g,new THREE.SphereGeometry(.105,24,18),skin,0,1.66,.005);head.scale.set(.92,1.12,1);
-  add(g,new THREE.SphereGeometry(.112,24,12,0,6.2832,0,1.25),hair,0,1.68,-.012).scale.set(.95,1.05,1.02);
-  [-.035,.035].forEach(x=>add(g,new THREE.SphereGeometry(.011,8,6),mat(0x0d0b0a),x,1.68,.094));
-  const arm=(x)=>{const piv=limb(.048,.038,.58,top,x,1.45,0);const hand=add(piv,new THREE.SphereGeometry(.046,14,10),skin,0,-.62,0);hand.scale.set(.55,1.25,1);piv.userData.hand=hand;return piv;};
-  g.userData.armL=arm(.215);g.userData.armR=arm(-.215);
-  g.userData.armL.rotation.z=.06;g.userData.armR.rotation.z=-.06;
-  g.scale.setScalar(o.h/1.75);g.userData.o=o;g.userData.t=Math.random()*10;
-  return g;
-}
-function walkPose(g,t,amp){const u=g.userData,s=Math.sin(t*7)*amp;u.legL.rotation.x=s;u.legR.rotation.x=-s;u.armL.rotation.x=-s*.8;u.armR.rotation.x=s*.8;}
-
-// you, standing still; the point on the back of your right hand is the origin of everything below
-const you=makeHuman({skin:0x9a6748,top:0x2b3a55,legs:0x1f2229,h:1.75,hair:0x120d0a});
-you.updateMatrixWorld(true);
-const HAND=new THREE.Vector3(),SKIN_D=6e-4;
-you.userData.armR.userData.hand.getWorldPosition(HAND);HAND.x-=.046*.55*you.scale.x; // outer side of the hand
-const ground=new THREE.Group();ground.position.set(-HAND.x-SKIN_D,-HAND.y,-HAND.z);life.add(ground); // street level, feet at y=0
-ground.add(you);
-const CAM_STREET=[2.05,1.3],CAM_HAND=[2.5,1.45],CAM_CITY=[null,1.18]; // preferred orbit angles while gliding in
-
-// the city: blocks of towers fading out into suburbs, windows that light up at night
-const winTex=canvasTex(512,512,(g,w)=>{g.fillStyle='#5d6168';g.fillRect(0,0,w,w);for(let i=0;i<16;i++)for(let j=0;j<16;j++){const v=40+Math.random()*40;g.fillStyle='rgb('+v+','+(v+12)+','+(v+28)+')';g.fillRect(i*32+3,j*32+4,26,24);}});
-const litTex=canvasTex(512,512,(g,w)=>{g.fillStyle='#000';g.fillRect(0,0,w,w);for(let i=0;i<16;i++)for(let j=0;j<16;j++)if(Math.random()<.42){const t=Math.random();g.fillStyle=t<.6?'#ffc777':t<.85?'#fff1d6':'#bfe0ff';g.globalAlpha=.55+Math.random()*.45;g.fillRect(i*32+3,j*32+4,26,24);}g.globalAlpha=1;});
-[winTex,litTex].forEach(t=>{t.wrapS=t.wrapT=THREE.RepeatWrapping;});
-const BLOCK=140,ROAD=20;
-const city=(function(){
-  const parts=[],box=new THREE.BoxGeometry(1,1,1);box.translate(0,.5,0);
-  const uvBox=(w,h,d)=>{const g=box.clone(),uv=g.attributes.uv; // windows: one per 4 m across, one per 3.6 m up
-    for(let f=0;f<6;f++)for(let v=0;v<4;v++){const i=f*4+v,u0=uv.getX(i),v0=uv.getY(i);
-      if(f===2||f===3)uv.setXY(i,.99,.99);else uv.setXY(i,u0*(f<2?d:w)/64,v0*h/57.6);}return g;};
-  const blds=[],add=(x,z,w,d,h,c)=>{blds.push([x,z,w,d,h]);parts.push({geo:uvBox(w,h,d),m:mtx(x,0,z,w,h,d),c});};
-  // the street around you: a glass tower behind, offices and shops across the road
-  add(-8,-52,34,30,168,[.62,.78,.95]);add(42,-44,30,26,74,[.85,.82,.78]);add(-62,-38,26,30,46,[.8,.74,.7]);
-  add(-30,58,40,22,32,[.86,.84,.8]);add(26,62,30,26,58,[.7,.75,.82]);add(72,52,26,30,22,[.9,.86,.78]);
-  for(let bx=-28;bx<=28;bx++)for(let bz=-28;bz<=28;bz++){
-    const cx=bx*BLOCK,cz=bz*BLOCK,r=Math.hypot(cx,cz);if(r>3900||r<150)continue;
-    const n=r<1300?1+(Math.random()*2|0):2+(Math.random()*3|0),hmax=16+300*Math.exp(-r/700);
-    for(let i=0;i<n;i++){const s=(BLOCK-ROAD)/(n>2?2:n),ox=(n>1?(i%2)-.5:0)*s,oz=(n>2?(i>1?.5:-.5):0)*s;
-      const w=s*rnd(.55,.85),d=(BLOCK-ROAD)*(n>2?.5:1)*rnd(.5,.85),h=Math.max(8,hmax*Math.pow(Math.random(),1.6)*rnd(.4,1));
-      const t=Math.random(),c=t<.35?[.62,.72,.85]:t<.7?[.82,.79,.74]:[.72,.7,.68];add(cx+ox,cz+oz,w,d,h,c);}}
-  const m=new THREE.Mesh(mergeGeos(parts),mat(0xffffff,{map:winTex,emissiveMap:litTex,emissive:0xffffff,emissiveIntensity:0,vertexColors:true,roughness:.55,metalness:.2}));
-  ground.add(m);
-  // lit windows as points of light, so the towers sparkle at night even from far away
-  const pts=[],cols=[],sz=[];blds.forEach(([x,z,w,d,h])=>{const n=Math.min(40,Math.ceil(h/5));for(let i=0;i<n;i++){if(Math.random()<.2)continue;const f=Math.random()*4|0,t=Math.random()-.5;
-    const px=f<2?x+(f?1:-1)*(w/2+.4):x+t*w,pz=f<2?z+t*d:z+(f===2?1:-1)*(d/2+.4);pts.push(px,rnd(3,h-2),pz);const c=Math.random();cols.push(...(c<.65?[1,.78,.45]:c<.9?[1,.95,.85]:[.75,.88,1]).map(v=>v*rnd(.5,1)));sz.push(rnd(8,16));}});
-  m.userData.lights=glowPoints(new Float32Array(pts),new Float32Array(cols),new Float32Array(sz),dot);ground.add(m.userData.lights);
-  return m;
-})();
-// streets seen from above: a road grid lit orange at night
-const groundTex=canvasTex(2048,2048,(g,w)=>{g.fillStyle='#4b4a45';g.fillRect(0,0,w,w);const k=w/9000;
-  for(let i=0;i<9000;i+=60){g.fillStyle='rgba('+(60+Math.random()*30)+','+(62+Math.random()*30)+','+(50+Math.random()*20)+',.5)';g.fillRect(Math.random()*w,Math.random()*w,40*k*rnd(1,6),40*k*rnd(1,6));}
-  g.fillStyle='#262628';for(let i=-32;i<=32;i++){const p=(4500+i*BLOCK-ROAD/2-BLOCK/2)*k;g.fillRect(p,0,ROAD*k,w);g.fillRect(0,p,w,ROAD*k);}});
-const groundLit=canvasTex(1024,1024,(g,w)=>{g.fillStyle='#000';g.fillRect(0,0,w,w);const k=w/9000;g.fillStyle='#b8661c';
-  for(let i=-32;i<=32;i++){const p=(4500+i*BLOCK-BLOCK/2)*k,f=Math.max(0,1-Math.abs(i)*BLOCK/4200);g.globalAlpha=.25+.75*f;g.fillRect(p-1,0,2,w);g.fillRect(0,p-1,w,2);}});
-const cityGround=new THREE.Mesh(new THREE.PlaneGeometry(9000,9000),mat(0xffffff,{map:groundTex,emissiveMap:groundLit,emissive:0xffffff,emissiveIntensity:0,roughness:1,alphaMap:glowTex([[0,'#fff'],[.75,'#fff'],[1,'#000']]),transparent:true}));
-cityGround.rotation.x=-Math.PI/2;cityGround.position.y=-.05;ground.add(cityGround);
+// the zoom dives into the back of your right hand, held out 1.38 m above the pavement
+const ground=new THREE.Group();ground.position.set(0,-1.38,0);life.add(ground);
+const BLOCK=140;
 // lights of the whole metropolis, out to 25 km
 const cityLights=(function(){const n=14000,pos=new Float32Array(n*3),col=new Float32Array(n*3),sz=new Float32Array(n);
   for(let i=0;i<n;i++){const r=Math.min(25000,-Math.log(1-Math.random()*.995)*5200),a=Math.random()*6.2832;let x=r*Math.cos(a),z=r*Math.sin(a);
     if(Math.random()<.7){if(Math.random()<.5)x=Math.round(x/BLOCK)*BLOCK-BLOCK/2;else z=Math.round(z/BLOCK)*BLOCK-BLOCK/2;}
     pos.set([x,3,z],i*3);const t=Math.random(),b=.5+Math.random()*.5,c=t<.7?[1,.62,.25]:t<.9?[1,.9,.7]:[.7,.85,1];col.set(c.map(v=>v*b),i*3);sz[i]=rnd(25,60);}
   const p=glowPoints(pos,col,sz,dot);ground.add(p);return p;})();
-// a few planes blinking over the city at cruising height
-const planes=[0,1,2,3,4].map(i=>({a:Math.random()*6.2832,r:rnd(4000,14000),h:rnd(2500,10000),w:rnd(.012,.03)*(i%2?1:-1)}));
-const planeDots=glowPoints(new Float32Array(15),new Float32Array([1,.3,.3,1,1,1,1,.3,.3,1,1,1,1,.3,.3]),new Float32Array(5).fill(180),dot);ground.add(planeDots);
 // the Earth around the city: the same pixels as the globe, gently curved, so the descent is seamless
 const RE=6.371e6,EARTH_SPAN=9e5;
 const earthPatch=new THREE.Mesh((function(){const g=new THREE.PlaneGeometry(EARTH_SPAN,EARTH_SPAN,96,96);g.rotateX(-Math.PI/2);const p=g.attributes.position;
@@ -699,131 +625,606 @@ function cropEarth(img){ // cut the patch under the city out of the globe's own 
   earthPatch.material.map=canvasTex(256,256,(g,w)=>{g.imageSmoothingEnabled=true;g.drawImage(img,(CITY.lon-dLon/2+180)/360*W,(90-CITY.lat-dLat/2)/180*H,dLon/360*W,dLat/180*H,0,0,w,w);});
   earthPatch.material.needsUpdate=true;
 }
-
-// the street you stand on
-const streetTex=canvasTex(2048,2048,(g,w)=>{const k=w/240,X=m=>(m+120)*k;g.fillStyle='#8e8b84';g.fillRect(0,0,w,w);
-  g.strokeStyle='rgba(60,58,54,.35)';g.lineWidth=1;for(let i=0;i<240;i+=1.2){g.beginPath();g.moveTo(X(i-120),0);g.lineTo(X(i-120),w);g.stroke();g.beginPath();g.moveTo(0,X(i-120));g.lineTo(w,X(i-120));g.stroke();}
-  g.fillStyle='#2b2b2e';g.fillRect(0,X(8),w,X(22)-X(8));g.fillRect(X(-48),0,X(-34)-X(-48),w);
-  g.fillStyle='#d9d4c4';for(let x=-120;x<120;x+=6)g.fillRect(X(x),X(14.9),3*k,.2*k);g.fillStyle='#e6c34a';g.fillRect(0,X(8.25),w,.15*k);g.fillRect(0,X(21.6),w,.15*k);
-  g.fillStyle='#e8e4d8';for(let z=8.6;z<21.6;z+=1.2)g.fillRect(X(-20),X(z),X(-12)-X(-20),.6*k);
-  g.fillStyle='#6f7a5a';[[-90,-30],[70,-20],[-70,40],[90,40]].forEach(p=>{g.beginPath();g.arc(X(p[0]),X(p[1]),2.2*k,0,7);g.fill();});});
-const street=new THREE.Group();ground.add(street);
-const streetFloor=new THREE.Mesh(new THREE.PlaneGeometry(240,240),mat(0xffffff,{map:streetTex,roughness:.95}));streetFloor.rotation.x=-Math.PI/2;streetFloor.position.y=.02;street.add(streetFloor);
-const lampHeads=[],lampLights=[];
-for(let x=-100;x<=100;x+=25){const pole=new THREE.Mesh(new THREE.CylinderGeometry(.07,.1,8,8),mat(0x3a3d42,{metalness:.6,roughness:.4}));pole.position.set(x,4,7.2);street.add(pole);
-  const arm=new THREE.Mesh(new THREE.BoxGeometry(.08,.08,2),pole.material);arm.position.set(x,7.9,8.1);street.add(arm);
-  const head=new THREE.Mesh(new THREE.BoxGeometry(.5,.12,.9),mat(0x222222,{emissive:0xffd59a,emissiveIntensity:0}));head.position.set(x,7.85,9);street.add(head);lampHeads.push(head);}
-[-25,0,25].forEach(x=>{const l=new THREE.PointLight(0xffd59a,0,38,1.4);l.position.set(x,7.6,9);street.add(l);lampLights.push(l);});
-const lampGlow=glowPoints(new Float32Array(lampHeads.flatMap(h=>[h.position.x,7.7,h.position.z])),new Float32Array(lampHeads.length*3).fill(1).map((v,i)=>[1,.82,.55][i%3]),new Float32Array(lampHeads.length).fill(3.2),dot);street.add(lampGlow);
-[[-90,-30],[70,-20],[-70,40],[90,40],[-14,-14]].forEach(p=>{const t=new THREE.Mesh(new THREE.CylinderGeometry(.14,.2,3.2,8),mat(0x4a3627));t.position.set(p[0],1.6,p[1]);street.add(t);
-  const c=new THREE.Mesh(new THREE.IcosahedronGeometry(2.4,1),mat(0x3d6b35,{flatShading:true}));c.position.set(p[0],4.6,p[1]);c.scale.y=1.2;street.add(c);});
-{const b=new THREE.Mesh(new THREE.BoxGeometry(2,.1,.5),mat(0x6b4a2e));b.position.set(5,.45,3);street.add(b);
-  [-.8,.8].forEach(x=>{const l=new THREE.Mesh(new THREE.BoxGeometry(.08,.45,.45),mat(0x2c2c2c));l.position.set(5+x,.22,3);street.add(l);});}
-// other people: friends next to you, strangers walking past
-const PEOPLE=[{skin:0xc58c66,top:0xb5473a,legs:0x2a3550,h:1.62,hair:0x2d1b10,x:.9,z:.25,ry:-.6},
- {skin:0x7a4e35,top:0xe1d6c2,legs:0x4b4b4b,h:1.8,x:1.6,z:-.6,ry:-1.2},
- {skin:0xe0b090,top:0x3d6f5a,legs:0x2e2e33,h:1.7,hair:0x8a5a2b,x:-1.5,z:-1.2,ry:.8},
- {skin:0x5e3c2a,top:0xd9a441,legs:0x23262e,h:1.66,walk:1.3,z:3.6},{skin:0xb9825f,top:0x6c4a8f,legs:0x30343c,h:1.74,walk:-1.1,z:5.2},
- {skin:0xd8a07a,top:0xf0f0ee,legs:0x2b3d63,h:1.58,walk:1.0,z:4.6},{skin:0x8d5b3e,top:0x1d1f24,legs:0x1d1f24,h:1.85,walk:-1.4,z:2.4},
- {skin:0xa8714f,top:0xc8553d,legs:0x3a3a3a,h:1.69,walk:1.2,z:-4},{skin:0xe2b796,top:0x4a7bb5,legs:0x2a2a2a,h:1.77,walk:-.9,z:-3.2}];
-const people=PEOPLE.map(o=>{const g=makeHuman(o);g.position.set(o.x!==undefined?o.x:rnd(-60,60),0,o.z);g.rotation.y=o.walk?(o.walk>0?Math.PI/2:-Math.PI/2):o.ry;street.add(g);return g;});
-const youRing=new THREE.Mesh(new THREE.RingGeometry(.42,.48,48),new THREE.MeshBasicMaterial({color:0xf4e04a,transparent:true,opacity:.7,depthWrite:false}));youRing.rotation.x=-Math.PI/2;youRing.position.y=.04;street.add(youRing);
-// cars
-const cars=[[12,13],[12,-11],[18.5,-14],[18.5,12],[12,9]].map((c,i)=>{const g=new THREE.Group(),col=[0xc0392b,0xe8e8e8,0x1f3a5f,0x2d2d2d,0xd4a017][i];
-  const body=new THREE.Mesh(new THREE.BoxGeometry(4.4,.75,1.85),mat(col,{metalness:.5,roughness:.35}));body.position.y=.65;g.add(body);
-  const cab=new THREE.Mesh(new THREE.BoxGeometry(2.3,.6,1.65),mat(0x1a2330,{metalness:.7,roughness:.15}));cab.position.set(-.2,1.3,0);g.add(cab);
-  [[-1.4,-.85],[-1.4,.85],[1.4,-.85],[1.4,.85]].forEach(w=>{const wh=new THREE.Mesh(new THREE.CylinderGeometry(.34,.34,.24,14),mat(0x111111));wh.rotation.x=Math.PI/2;wh.position.set(w[0],.34,w[1]);g.add(wh);});
-  [-.6,.6].forEach(z=>{const h=new THREE.Mesh(new THREE.BoxGeometry(.06,.14,.34),mat(0x222222,{emissive:0xfff3d0,emissiveIntensity:1.5}));h.position.set(2.21,.75,z);g.add(h);
-    const t=new THREE.Mesh(new THREE.BoxGeometry(.06,.14,.34),mat(0x330000,{emissive:0xff2a1a,emissiveIntensity:1.2}));t.position.set(-2.21,.75,z);g.add(t);});
-  g.position.set(rnd(-110,110),0,c[0]);g.rotation.y=c[1]>0?0:Math.PI;g.userData.v=c[1];street.add(g);return g;});
-
-// sky over the street: blue by day, red at dusk, near black at night
-const skyDome=new THREE.Mesh(new THREE.SphereGeometry(1,32,16),new THREE.ShaderMaterial({side:THREE.BackSide,depthTest:false,depthWrite:false,transparent:true,
-  uniforms:{sun:{value:new THREE.Vector3(0,1,0)},day:{value:1},opacity:{value:1}},
-  vertexShader:'varying vec3 vD;void main(){vD=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:'uniform vec3 sun;uniform float day,opacity;varying vec3 vD;void main(){float e=max(vD.y,0.),s=max(dot(vD,normalize(sun)),0.);'+
-   'vec3 zen=mix(vec3(.004,.007,.02),vec3(.16,.36,.72),day),hor=mix(vec3(.03,.04,.07),vec3(.62,.75,.9),day);float dusk=clamp(1.-abs(sun.y)*5.,0.,1.);'+
-   'hor=mix(hor,vec3(.85,.42,.2),dusk*.7);vec3 c=mix(hor,zen,pow(e,.45))+vec3(1.,.85,.6)*pow(s,300.)*(day+dusk)+vec3(1.,.6,.3)*pow(s,8.)*.25*(day+dusk);'+
-   'if(vD.y<0.)c=hor*.6;gl_FragColor=vec4(c,opacity*mix(.82,1.,day));}'}));
-skyDome.renderOrder=-10;skyDome.frustumCulled=false;life.add(skyDome);
 const lifeAmb=new THREE.AmbientLight(0x8fa0c8,.045),lifeHemi=new THREE.HemisphereLight(0xbfd6ff,0x4a4036,0),lifeSun=new THREE.DirectionalLight(0xfff2dc,0);
 const microLight=new THREE.DirectionalLight(0xfff0e0,0),atomLight=new THREE.PointLight(0xfff2dc,0,0,0);
 life.add(lifeAmb,lifeHemi,lifeSun,lifeSun.target,microLight,microLight.target,atomLight);
-
-/* micro: skin, a blood vessel, a white blood cell, its chromosomes, chromatin, DNA, one carbon atom — all at the origin */
 const micro=new THREE.Group();life.add(micro);
-const skinTex=canvasTex(1024,1024,(g,w)=>{g.fillStyle='#9a6748';g.fillRect(0,0,w,w);
-  for(let i=0;i<9000;i++){g.fillStyle='rgba('+(120+Math.random()*60|0)+','+(70+Math.random()*40|0)+','+(50+Math.random()*30|0)+',.25)';g.fillRect(Math.random()*w,Math.random()*w,2+Math.random()*5,2+Math.random()*5);}
-  g.strokeStyle='rgba(70,40,28,.35)';for(let i=0;i<260;i++){g.lineWidth=.6+Math.random()*1.6;const x=Math.random()*w,y=Math.random()*w,a=(Math.random()<.5?.6:-.6)+gs()*.25,l=40+Math.random()*160;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+Math.cos(a)*l*.5+gs()*20,y+Math.sin(a)*l*.5+gs()*20,x+Math.cos(a)*l,y+Math.sin(a)*l);g.stroke();}
-  g.fillStyle='rgba(50,28,20,.5)';for(let i=0;i<700;i++){g.beginPath();g.arc(Math.random()*w,Math.random()*w,.8+Math.random()*1.8,0,7);g.fill();}
-  g.strokeStyle='rgba(30,18,12,.55)';g.lineWidth=1.3;for(let i=0;i<40;i++){const x=Math.random()*w,y=Math.random()*w;g.beginPath();g.moveTo(x,y);g.quadraticCurveTo(x+20,y-10+gs()*10,x+40+Math.random()*30,y+gs()*20);g.stroke();}});
-const skin=new THREE.Mesh(new THREE.CircleGeometry(.05,64),mat(0xffffff,{map:skinTex,transparent:true,alphaMap:glowTex([[0,'#fff'],[.6,'#fff'],[1,'#000']]),roughness:.7,depthWrite:false}));
-skin.rotation.y=-Math.PI/2;skin.position.x=-SKIN_D-2e-5;micro.add(skin);
-const RV=6e-5,VL=1.6e-3; // an arteriole: 120 µm across
-const vessel=new THREE.Mesh(new THREE.CylinderGeometry(RV,RV,VL*2,64,1,true),mat(0xb0303c,{side:THREE.DoubleSide,transparent:true,opacity:.3,emissive:0x3a0a10,depthWrite:false}));micro.add(vessel);
-const capillaries=(function(){const g=new THREE.Group();for(let i=0;i<9;i++){const pts=[];let p=new THREE.Vector3(rnd(-1,1),rnd(-1.2,1.2),rnd(-1,1)).multiplyScalar(6e-4);const d=new THREE.Vector3(rnd(-1,1),rnd(-1,1),rnd(-1,1)).normalize();
-  for(let k=0;k<7;k++){pts.push(p.clone());d.add(new THREE.Vector3(gs(),gs(),gs()).multiplyScalar(.6)).normalize();p.addScaledVector(d,1.5e-4);}
-  const t=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),48,4e-6,8,false),mat(0xa02838,{transparent:true,opacity:.5,emissive:0x2a0508,depthWrite:false}));g.add(t);}micro.add(g);return g;})();
-// red blood cells: the classic biconcave disc, drifting faster in the middle of the vessel
-const rbcGeo=(function(){const D=7.8e-6,pts=[];for(let i=0;i<=24;i++){const r=i/24,h=.5*D*Math.sqrt(Math.max(0,1-r*r))*(.207+2*r*r-1.123*r**4);pts.push(new THREE.Vector2(r*D/2,h));}
-  for(let i=23;i>=0;i--){const v=pts[i];pts.push(new THREE.Vector2(v.x,-v.y));}return new THREE.LatheGeometry(pts,28);})();
-const cellMat=(c,rim)=>new THREE.ShaderMaterial({transparent:true,uniforms:{color:{value:new THREE.Color(c)},rim:{value:new THREE.Color(rim)},opacity:{value:0},near:{value:0}},
-  vertexShader:'uniform float near;varying vec3 vN,vV;varying float vF;void main(){vec4 p=vec4(position,1.);vec3 n=normal;\n#ifdef USE_INSTANCING\np=instanceMatrix*p;n=mat3(instanceMatrix)*n;\n#endif\nvec4 mv=modelViewMatrix*p;vN=normalize(normalMatrix*n);vV=normalize(-mv.xyz);vF=smoothstep(near*.35,near,-mv.z);gl_Position=projectionMatrix*mv;}',
-  fragmentShader:'uniform vec3 color,rim;uniform float opacity;varying vec3 vN,vV;varying float vF;void main(){vec3 n=normalize(vN);if(!gl_FrontFacing)n=-n;float d=max(dot(n,normalize(vec3(.4,.8,.5))),0.),f=pow(1.-abs(dot(n,vV)),2.5);'+
-   'gl_FragColor=vec4(color*(.28+.85*d)+rim*f,opacity*vF);}'});
-const NRBC=1300,rbc=new THREE.InstancedMesh(rbcGeo,cellMat(0xb3121f,0xff6a5a),NRBC);rbc.frustumCulled=false;micro.add(rbc);
-const rbcS=[...Array(NRBC)].map(()=>{const a=Math.random()*6.2832,r=Math.sqrt(Math.random())*RV*.85;return {x:Math.cos(a)*r,z:Math.sin(a)*r,y:rnd(-VL,VL),q:new THREE.Quaternion().setFromEuler(new THREE.Euler(rnd(0,6),rnd(0,6),rnd(0,6))),s:rnd(-1,1)};});
-// a white blood cell at the origin, and in its nucleus, chromosomes
-const RW=6e-6,wbc=new THREE.Mesh((function(){const g=new THREE.IcosahedronGeometry(1,5),p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=RW*(1+.07*(fbm(x*3+1,y*3,z*3,3)-.5)+.03*(vn(x*14,y*14,z*14)-.5));p.setXYZ(i,x*k,y*k,z*k);}g.computeVertexNormals();return g;})(),cellMat(0xd9d2ee,0xffffff));micro.add(wbc);
-const nucleus=new THREE.Mesh((function(){const g=new THREE.IcosahedronGeometry(1,4),p=g.attributes.position;for(let i=0;i<p.count;i++){const x=p.getX(i),y=p.getY(i),z=p.getZ(i),k=3.7e-6*(1+.12*(fbm(x*2+7,y*2,z*2,3)-.5));p.setXYZ(i,x*k,y*k,z*k);}g.computeVertexNormals();return g;})(),cellMat(0x5b3a8c,0xc9a6ff));micro.add(nucleus);
-const granules=glowPoints(new Float32Array([...Array(1800)].flatMap(()=>{let p;do{p=inBall();}while(Math.hypot(...p)<.66);return p.map(v=>v*RW*.94);})),new Float32Array(1800*3).map(()=>rnd(.35,.7)),new Float32Array(1800).fill(1.6e-7),dot);micro.add(granules);
-const chromo=(function(){ // 46, in the bright colours of a spectral karyotype
-  const parts=[],cap=new THREE.SphereGeometry(1,12,8),cyl=new THREE.CylinderGeometry(1,1,1,12,8,true);
-  const arms=(ox,oy,oz,L,r,rot,c)=>{const base=mtx(ox,oy,oz,1,1,1,rot[0],rot[1],rot[2]);
-    [[1,1],[-1,1]].forEach(([sx])=>{const tilt=sx*.22,m=base.clone().multiply(mtx(0,0,0,1,1,1,0,0,tilt));
-      const band=(y,len)=>{for(let b=0;b<4;b++){const yy=y-len/2+(b+.5)*len/4,cc=b%2?c.map(v=>v*.55):c;parts.push({geo:cyl,m:m.clone().multiply(mtx(0,yy,0,r,len/4,r)),c:cc});}};
-      band(L*.28,L*.56);band(-L*.22,L*.44);
-      [L*.56,-L*.44].forEach(y=>parts.push({geo:cap,m:m.clone().multiply(mtx(0,y,0,r,r,r)),c}));
-      parts.push({geo:cap,m:m.clone().multiply(mtx(0,0,0,r*1.05,r*1.05,r*1.05)),c:c.map(v=>v*.7)});});};
-  const COL=[[.95,.35,.3],[.35,.85,.45],[.35,.55,1],[1,.8,.3],[.85,.4,.95],[.3,.9,.9],[1,.55,.2],[.7,.95,.3]];
-  arms(0,0,0,1.7e-6,1.6e-7,[.3,.2,.1],[.35,.55,1]); // yours, at the origin
-  for(let i=1;i<46;i++){let p;do{p=inBall().map(v=>v*3.0e-6);}while(Math.hypot(...p)<1.5e-6);arms(p[0],p[1],p[2],rnd(.6,1.5)*1.6e-6,1.5e-7,[rnd(0,6),rnd(0,6),rnd(0,6)],COL[i%COL.length]);}
-  const m=new THREE.Mesh(mergeGeos(parts),mat(0xffffff,{vertexColors:true,roughness:.6,transparent:true,emissive:0x111122}));micro.add(m);return m;})();
-// chromatin: the 30 nm fibre the chromosome is wound from, then the beads on a string inside it
-const fibre=(function(){const half=dir=>{const pts=[],p=new THREE.Vector3(),d=new THREE.Vector3(dir,0,0);
-    for(let i=0;i<36;i++){pts.push(p.clone());d.add(new THREE.Vector3(gs(),gs(),gs()).multiplyScalar(i<2?.1:.9)).normalize();if(p.length()>2.4e-7)d.add(p.clone().normalize().multiplyScalar(-1.2)).normalize();p.addScaledVector(d,3.2e-8);}return pts;};
-  const pts=half(-1).reverse().concat(half(1).slice(1)); // passes straight through the origin
-  const m=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),900,1.5e-8,10,false),mat(0x8fb7ff,{transparent:true,roughness:.5,emissive:0x0c1630}));micro.add(m);return m;})();
-const beads=(function(){const g=new THREE.Group(),path=[],hist=mat(0xe7a84b,{transparent:true,roughness:.5,emissive:0x2a1400});const R=6.6e-9;
-  for(let b=-4;b<=4;b++){const cx=b*2.2e-8+(b>0?.4e-8:b<0?-.4e-8:0),cz=(b%2?1:-1)*7e-9;if(b===0){path.push(new THREE.Vector3(-1e-8,0,0),new THREE.Vector3(1e-8,0,0));continue;}
-    const core=new THREE.Mesh(new THREE.CylinderGeometry(5.5e-9,5.5e-9,5.7e-9,24),hist);core.position.set(cx,0,cz);core.rotation.x=Math.PI/2;g.add(core);
-    for(let i=0;i<=40;i++){const t=i/40*1.65*6.2832;path.push(new THREE.Vector3(cx+Math.cos(t)*R,Math.sin(t)*R,cz+(i/40-.5)*5e-9));}}
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(path),1400,1e-9,8,false),mat(0x8fd0ff,{transparent:true,roughness:.4,emissive:0x0a2030})));
-  g.userData.mats=[hist,g.children[g.children.length-1].material];micro.add(g);return g;})();
-// DNA, atom by atom: phosphate backbone, sugars, bases paired across the middle
-const dna=(function(){const atoms=[],bonds=[],A=(x,y,z,e)=>{atoms.push([x,y,z,e]);return atoms.length-1;},B=(i,j)=>bonds.push([i,j]);
-  const RISE=3.38e-10,TW=34.3*D2R,cyl=(r,a,x)=>[x,r*Math.cos(a),r*Math.sin(a)];let centre=-1;
-  const prev=[-1,-1];
-  for(let i=-36;i<=36;i++){const x=i*RISE;
-    [0,1].forEach(s=>{const a=i*TW+(s?2.4:0),sg=s?-1:1,at=(r,da,dx,e)=>{const p=cyl(r,a+da*sg,x+dx*sg);return A(p[0],p[1],p[2],e);};
-      const P=at(8.9e-10,0,0,'P'),o1=at(9.8e-10,.12,0,'O'),o2=at(8.9e-10,-.12,-1.7e-10,'O'),o3=at(8.4e-10,.15,-.9e-10,'O');B(P,o1);B(P,o2);B(P,o3);
-      const c4=at(7.6e-10,.32,-.4e-10,'C'),o4=at(6.9e-10,.42,.4e-10,'O'),c1=at(5.9e-10,.5,0,'C'),c2=at(6.6e-10,.62,-.9e-10,'C'),c3=at(7.6e-10,.5,-1.1e-10,'C');
-      if(prev[s]>=0)B(prev[s],o2);B(o3,c4);B(c4,o4);B(o4,c1);B(c1,c2);B(c2,c3);B(c3,c4);prev[s]=c3;
-      const n1=at(4.6e-10,.55,0,'N'),b1=at(3.5e-10,.66,.4e-10,'C'),b2=at(2.3e-10,.62,.2e-10,'N'),b3=at(1.5e-10,.75,0,'C'),b4=at(3.4e-10,.45,-.3e-10,'C'),b5=at(2.2e-10,.4,-.4e-10,'N'),b6=at(1.2e-10,.55,-.3e-10,s?'O':'N');
-      B(c1,n1);B(n1,b1);B(b1,b2);B(b2,b3);B(n1,b4);B(b4,b5);B(b5,b6);B(b3,b6);
-      if(i===0&&s===0)centre=b4;});}
-  const c=atoms[centre].slice(0,3);atoms.forEach(a=>{a[0]-=c[0];a[1]-=c[1];a[2]-=c[2];});
-  const CPK={C:[.56,.56,.56],O:[1,.2,.18],N:[.2,.35,1],P:[1,.55,.1]},RAD={C:.34e-10,O:.32e-10,N:.33e-10,P:.42e-10};
-  const sph=new THREE.SphereGeometry(1,16,12),bnd=new THREE.CylinderGeometry(.12e-10,.12e-10,1,8),g=new THREE.Group(),up=new THREE.Vector3(0,1,0);
-  const am=mat(0xffffff,{transparent:true,roughness:.35,metalness:.1}),ai=new THREE.InstancedMesh(sph,am,atoms.length);
-  atoms.forEach((a,i)=>{const r=i===centre?0:RAD[a[3]];ai.setMatrixAt(i,mtx(a[0],a[1],a[2],r,r,r));ai.setColorAt(i,new THREE.Color().fromArray(CPK[a[3]]));});
-  const bm=mat(0xd8d8d8,{transparent:true,roughness:.5}),bi=new THREE.InstancedMesh(bnd,bm,bonds.length),va=new THREE.Vector3(),vb=new THREE.Vector3();
-  bonds.forEach(([i,j],k)=>{va.fromArray(atoms[i]);vb.fromArray(atoms[j]);const d=vb.clone().sub(va),m=new THREE.Matrix4().compose(va.clone().add(vb).multiplyScalar(.5),new THREE.Quaternion().setFromUnitVectors(up,d.clone().normalize()),S4.set(1,d.length(),1));bi.setMatrixAt(k,m);});
-  [ai,bi].forEach(o=>{o.frustumCulled=false;g.add(o);});
-  // the carbon at the origin, drawn on its own so it can hand over to the full atom
-  g.userData.c=new THREE.Mesh(sph,mat(0x8f8f8f,{transparent:true,roughness:.35}));g.userData.c.scale.setScalar(RAD.C);g.add(g.userData.c);
-  g.userData.mats=[am,bm];micro.add(g);return g;})();
 const lifeAtom=makeAtom(KA,micro);
+
+/* ---------- down to Earth, in pictures ---------- */
+// Below the clouds the world is painted rather than modelled, the way real lenses would show it: a satellite, a drone
+// hovering over you, then a dermatoscope, a light microscope, a fluorescence microscope, an electron microscope and an
+// atomic force microscope. Everything is in metres around the back of your right hand (x east, y south), seen from
+// straight above and drawn in perspective, so taller things lean outward as they do in a real aerial photograph.
+const P2=(function(){
+const cvs=document.getElementById('photo'),main=cvs.getContext('2d');
+const gnd=document.createElement('canvas'),gx=gnd.getContext('2d'),hnd=document.createElement('canvas'),hx=hnd.getContext('2d'),shd=document.createElement('canvas'),sx=shd.getContext('2d');
+const TANV=2*Math.tan(21*D2R),HH=1.38;   // the camera's field of view; your outstretched hand is 1.38 m above the ground
+let W=1,H=1,DPR=1,cx=0,cy=0,K=1,Rm=1,ca=1,sa=0,c=main,on=false,clock=0,ready=0;
+const canFilter='filter' in main;
+
+/* tools */
+const mk=(w,h,f)=>{const e=document.createElement('canvas');e.width=w;e.height=h||w;if(f)f(e.getContext('2d'),w,h||w);return e;};
+function rng(s){s=s>>>0||1;return ()=>{s^=s<<13;s^=s>>>17;s^=s<<5;return (s>>>0)/4294967296;};}
+const hs=(x,y)=>{let h=Math.imul(x|0,374761393)+Math.imul(y|0,668265263)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296;};
+function vn(x,y){const i=Math.floor(x),j=Math.floor(y),u=x-i,v=y-j,a=hs(i,j),b=hs(i+1,j),d=hs(i,j+1),e=hs(i+1,j+1),U=u*u*(3-2*u),V=v*v*(3-2*v);return a+(b-a)*U+(d-a)*V+(a-b-d+e)*U*V;}
+function fbm(x,y,o){let s=0,a=.5,n=0;for(let i=0;i<o;i++){s+=a*vn(x,y);n+=a;x=x*2.03+17.3;y=y*2.03+31.7;a*=.5;}return s/n;}
+const hex=s=>[parseInt(s.slice(1,3),16),parseInt(s.slice(3,5),16),parseInt(s.slice(5,7),16)];
+const mix=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const rgb=(q,a)=>'rgba('+(q[0]|0)+','+(q[1]|0)+','+(q[2]|0)+','+(a===undefined?1:+a.toFixed(3))+')';
+const shade=(q,k)=>q.map(v=>Math.min(255,v*k));
+function field(n,f){return mk(n,n,x=>{const im=x.createImageData(n,n),d=im.data;for(let j=0;j<n;j++)for(let i=0;i<n;i++){const q=f((i+.5)/n,(j+.5)/n),o=(j*n+i)*4;d[o]=q[0];d[o+1]=q[1];d[o+2]=q[2];d[o+3]=q.length>3?q[3]:255;}x.putImageData(im,0,0);});}
+function feather(x,w,a){const r=x.createRadialGradient(w/2,w/2,0,w/2,w/2,w/2);r.addColorStop(0,'#000');r.addColorStop(a,'#000');r.addColorStop(1,'rgba(0,0,0,0)');
+  x.globalCompositeOperation='destination-in';x.fillStyle=r;x.fillRect(0,0,w,w);x.globalCompositeOperation='source-over';}
+function wavy(x,x0,y0,ang,len,amp,n,R){x.beginPath();x.moveTo(x0,y0);let px=x0,py=y0;const st=len/n;for(let i=0;i<n;i++){ang+=(R()-.5)*amp;px+=Math.cos(ang)*st;py+=Math.sin(ang)*st;x.lineTo(px,py);}}
+const tint=(src,col)=>mk(src.width,src.height,x=>{x.drawImage(src,0,0);x.globalCompositeOperation='source-in';x.fillStyle=col;x.fillRect(0,0,src.width,src.height);});
+const radial=(n,stops)=>mk(n,n,x=>{const r=x.createRadialGradient(n/2,n/2,0,n/2,n/2,n/2);stops.forEach(s=>r.addColorStop(s[0],s[1]));x.fillStyle=r;x.fillRect(0,0,n,n);});
+const grain=mk(256,256,x=>{const im=x.createImageData(256,256);for(let i=0;i<im.data.length;i+=4){const v=128+(Math.random()+Math.random()-1)*100;im.data[i]=im.data[i+1]=im.data[i+2]=v;im.data[i+3]=255;}x.putImageData(im,0,0);});
+const glowS=radial(64,[[0,'rgba(255,255,255,1)'],[.25,'rgba(255,255,255,.4)'],[1,'rgba(255,255,255,0)']]);
+const lampS=tint(glowS,'#ffb35c'),headS=tint(glowS,'#fff6e2'),tailS=tint(glowS,'#ff2a1a');
+const shadowS=radial(64,[[0,'rgba(0,0,0,.75)'],[.55,'rgba(0,0,0,.5)'],[1,'rgba(0,0,0,0)']]);
+
+/* the camera: k(h) pixels per metre for things h metres above the ground; S() puts a point on screen */
+const k=h=>K/(Rm+(HH-h));
+const P=[0,0];
+function S(x,y,h){const s=k(h);P[0]=cx+(x*ca-y*sa)*s;P[1]=cy+(x*sa+y*ca)*s;return P;}
+function T(h,u){const s=k(h)*(u||1);c.setTransform(s*ca,s*sa,-s*sa,s*ca,cx,cy);}
+function I(){c.setTransform(1,0,0,1,0,0);}
+function raster(im,Wm,h,u,a){if(!im||a<.01)return;const w=Wm/u;T(h,u);c.globalAlpha=a;c.drawImage(im,-w/2,-w/2,w,w);c.globalAlpha=1;}
+function fill(col,a){if(a<.01)return;I();c.globalAlpha=a;c.fillStyle=col;c.fillRect(0,0,W,H);c.globalAlpha=1;}
+
+/* ---------- the wider city, as maps over kilometres ---------- */
+const rivX=y=>4.6+1.3*Math.sin(y/7.5+.8)+.45*Math.sin(y/2.3+1.7);     // the Yamuna, flowing south past the east of the city
+const TOWNS=[[-21,24,9],[16,9,7],[19,-6,6],[6,31,7],[-15,-17,5]];       // Gurgaon, Noida, Ghaziabad, Faridabad, Bahadurgarh
+function urb(x,y){const r=Math.hypot(x*.9,y-1)+5*(fbm(x/6+11,y/6+4,3)-.5);let t=1-ss(10,21,r);
+  for(const q of TOWNS)t=Math.max(t,(1-ss(q[2]*.35,q[2],Math.hypot(x-q[0],y-q[1])+3*(fbm(x/4,y/4+q[0],2)-.5)))*.9);return t;}
+function ridgeD(x,y){const ax=-3,ay=-9,dx=-12,dy=29,t=Math.max(0,Math.min(1,((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy)));return Math.hypot(x-ax-dx*t,y-ay-dy*t)-1.3*fbm(x/3,y/3,3);}
+const HW=[[[0,0],[-6,6],[-12,13],[-20,23],[-30,33]],[[0,0],[-1,-8],[-3,-18],[-4,-35]],[[0,0],[5,-1],[12,-3],[20,-6],[34,-9]],
+  [[0,0],[3,6],[5,14],[6,24],[8,35]],[[0,0],[-8,-2],[-18,-5],[-35,-8]],[[4,3],[12,7],[17,10],[28,16]]];
+const RINGS=[[-1,1,6.6,7.4],[-2,0,12.5,13.5]];
+const AIR=[-14,10];
+const C_U1=hex('#a39b8e'),C_U2=hex('#7b746a'),C_FARM=hex('#87875a'),C_FARM2=hex('#9c8c69'),C_FOR=hex('#5d6942'),C_SAND=hex('#bdb095'),C_PARK=hex('#5a7244');
+function mapColour(X,Y,U){const n=fbm(X*1.7,Y*1.7,4),rd=Math.abs(X-rivX(Y));
+  let q=mix(C_FARM,C_FARM2,fbm(X/2+5,Y/2,3));
+  const fr=1-ss(0,.7,ridgeD(X,Y));if(fr>0)q=mix(q,C_FOR,fr*.9);
+  q=mix(q,mix(C_U1,C_U2,ss(.3,.75,n)),ss(.22,.55,U+.12*(n-.5)));
+  if(U>.4&&fbm(X*2+40,Y*2,3)>.67)q=mix(q,C_PARK,.75);
+  const fp=1.1+.5*fbm(Y/3,9,2);if(rd<fp)q=mix(q,C_SAND,(1-ss(fp*.55,fp,rd))*.85);
+  return q;}
+// paint a map Wk km wide on a canvas N pixels wide; lights=true paints the same place at night
+function paintMap(N,Wk,lights,extra){
+  const pk=N/Wk,G=lights?256:512,UG=new Float32Array(G*G);
+  const toPx=(X,Y)=>[(X+Wk/2)*pk,(Y+Wk/2)*pk];
+  return mk(N,N,x=>{
+    const base=field(G,(u,v)=>{const X=(u-.5)*Wk,Y=(v-.5)*Wk,U=urb(X,Y);UG[Math.floor(v*G)*G+Math.floor(u*G)]=U;
+      if(lights){const b=ss(.3,.9,U)*(.25+.5*fbm(X*3,Y*3,3));return [255*b*.5,150*b*.5,60*b*.5];}
+      return mapColour(X,Y,U);});
+    x.imageSmoothingQuality='high';x.drawImage(base,0,0,N,N);
+    const R=rng(lights?77:11),Uat=(X,Y)=>{const i=Math.floor((X/Wk+.5)*G),j=Math.floor((Y/Wk+.5)*G);return i<0||j<0||i>=G||j>=G?0:UG[j*G+i];};
+    if(!lights){ // fields
+      const FC=['#6f8048','#8d9157','#a08c63','#7c8a4c','#b3a27a','#5f7340','#998a5c'];
+      for(let X=-Wk/2;X<Wk/2;X+=.42)for(let Y=-Wk/2;Y<Wk/2;Y+=.42){const U=Uat(X,Y);if(U>.3||Math.abs(X-rivX(Y))<1.6||ridgeD(X,Y)<.4)continue;
+        x.globalAlpha=.5*(1-U/.3);x.fillStyle=FC[R()*FC.length|0];const p=toPx(X+R()*.05,Y+R()*.05);x.fillRect(p[0],p[1],(.2+R()*.3)*pk,(.2+R()*.3)*pk);}
+      x.globalAlpha=1;
+      // a speckle of rooftops wherever there is city
+      const n=Math.min(400000,N*N*.06);for(let i=0;i<n;i++){const X=(R()-.5)*Wk,Y=(R()-.5)*Wk,U=Uat(X,Y);if(R()>U*1.2)continue;
+        const v=R();x.fillStyle=v<.4?'rgba(70,64,58,.35)':v<.8?'rgba(205,198,186,.35)':'rgba(150,120,95,.35)';const p=toPx(X,Y);x.fillRect(p[0],p[1],1+R()*1.5,1+R()*1.5);}
+    }else{ // street lights
+      const n=Math.min(260000,N*N*.12);for(let i=0;i<n;i++){const X=(R()-.5)*Wk,Y=(R()-.5)*Wk,U=Uat(X,Y);if(R()>U*U)continue;
+        x.fillStyle=R()<.8?'rgba(255,170,80,.55)':'rgba(255,240,215,.6)';const p=toPx(X,Y);x.fillRect(p[0],p[1],1,1);}
+    }
+    if(extra)extra(x,toPx,pk,R,Uat);
+    // highways and ring roads
+    const roadPath=pts=>{x.beginPath();pts.forEach((q,i)=>{const p=toPx(q[0],q[1]);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);});};
+    const ringPath=r=>{x.beginPath();for(let i=0;i<=120;i++){const a=i/120*6.2832,w=1+.06*Math.sin(a*3+1),p=toPx(r[0]+Math.cos(a)*r[2]*w,r[1]+Math.sin(a)*r[3]*w);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);}};
+    x.lineJoin=x.lineCap='round';
+    const strokeAll=(w,col)=>{x.lineWidth=w;x.strokeStyle=col;HW.forEach(h=>{roadPath(h);x.stroke();});RINGS.forEach(r=>{ringPath(r);x.stroke();});};
+    if(lights){strokeAll(Math.max(2,.2*pk),'rgba(255,150,60,.12)');strokeAll(Math.max(1,.05*pk),'rgba(255,200,120,.75)');}
+    else strokeAll(Math.max(1.2,.05*pk),'rgba(196,190,178,.9)');
+    // the river: a wandering channel in its sandy bed
+    x.beginPath();for(let Y=-Wk/2;Y<=Wk/2;Y+=Wk/600){const p=toPx(rivX(Y)+.12*Math.sin(Y*1.9),Y);Y===-Wk/2?x.moveTo(p[0],p[1]):x.lineTo(p[0],p[1]);}
+    x.lineWidth=Math.max(1.5,.2*pk);x.strokeStyle=lights?'#020202':'#3c4a3d';x.stroke();
+    // the airport
+    x.save();const ap=toPx(AIR[0],AIR[1]);x.translate(ap[0],ap[1]);x.rotate(-.17);
+    if(lights){x.fillStyle='rgba(255,235,200,.8)';[[-1.9,-.6,3.8,.03],[-2.2,.5,4.4,.03],[-1.4,1.4,2.8,.03]].forEach(r=>x.fillRect(r[0]*pk,r[1]*pk,r[2]*pk,Math.max(1,r[3]*pk)));x.fillStyle='rgba(255,200,120,.6)';x.fillRect(-.6*pk,-.3*pk,1.4*pk,.5*pk);}
+    else{x.fillStyle='#a8a59d';x.fillRect(-2.4*pk,-1*pk,4.8*pk,2.8*pk);x.fillStyle='#55585a';[[-1.9,-.6,3.8,.06],[-2.2,.5,4.4,.06],[-1.4,1.4,2.8,.05]].forEach(r=>x.fillRect(r[0]*pk,r[1]*pk,r[2]*pk,Math.max(1,r[3]*pk)));
+      x.fillStyle='#d6d3cc';x.fillRect(-.6*pk,-.3*pk,1.4*pk,.5*pk);}
+    x.restore();
+    if(!lights){x.globalCompositeOperation='overlay';x.globalAlpha=.25;x.fillStyle=x.createPattern(grain,'repeat');x.fillRect(0,0,N,N);x.globalAlpha=1;x.globalCompositeOperation='source-over';}
+    feather(x,N,.8);
+  });
+}
+
+/* ---------- Connaught Place and the streets around it, object by object ---------- */
+const CP=[-35,22],RAD=[8,52,97,141,186,229,274,318].map(a=>a*D2R);
+const far=(x,y)=>Math.hypot(x-CP[0],y-CP[1]);
+function nearRadial(x,y,m){const dx=x-CP[0],dy=y-CP[1];for(const a of RAD){const t=dx*Math.cos(a)+dy*Math.sin(a);if(t>0&&Math.abs(-dx*Math.sin(a)+dy*Math.cos(a))<m)return true;}return false;}
+const ROOF=['#b9b2a6','#c9c1b2','#a8a49c','#d3c7b1','#9c968c','#c2a891','#b7aca0','#d8d2c6','#8d8a85','#c4b49d','#a7978a','#d0bfa8'].map(hex);
+const SHIRT=['#9e3a32','#e4dfd4','#2b3442','#c9a443','#2f5e52','#6d4a7c','#efede6','#3a4250','#c26a32','#77797a','#2d6e66','#94405f','#232427','#b5654d','#4f6f94','#d8b99a','#2f4a8a','#d7a9ad','#5b4a3a','#8c8a7c'].map(hex);
+const HAIR=['#141010','#1d1612','#2a1d15','#141010','#1d1612','#5a4636','#8d8a85'].map(hex);
+const CITYD=(function(){
+  const R=rng(1931),bl=[],tr=[],rd=[],rg=[],gp=[],lp=[];
+  const box=(x0,y0,x1,y1)=>[x0,y0,x1,y0,x1,y1,x0,y1];
+  const B=(p,h,col,tank,det)=>{let a=1e9,b=1e9,e=-1e9,d=-1e9;for(let i=0;i<p.length;i+=2){a=Math.min(a,p[i]);e=Math.max(e,p[i]);b=Math.min(b,p[i+1]);d=Math.max(d,p[i+1]);}
+    bl.push({p,h,c:col,w:shade(col,.6),t:tank,d:det,b:[a,b,e,d],s:Math.max(e-a,d-b)});};
+  const sector=(r0,r1,a0,a1)=>{const p=[],n=Math.max(2,Math.ceil((a1-a0)/.05));for(let i=0;i<=n;i++){const a=a0+(a1-a0)*i/n;p.push(CP[0]+Math.cos(a)*r1,CP[1]+Math.sin(a)*r1);}
+    for(let i=n;i>=0;i--){const a=a0+(a1-a0)*i/n;p.push(CP[0]+Math.cos(a)*r0,CP[1]+Math.sin(a)*r0);}return p;};
+  // Connaught Place: three rings of white colonnaded blocks around Central Park, cut by eight radial roads
+  gp.push({x:CP[0],y:CP[1],r:330,c:'#8f887d'},{x:CP[0],y:CP[1],r:119,c:'#58763c'},{x:CP[0],y:CP[1],r:50,c:'#cbc2b1'});
+  rg.push([CP[0],CP[1],128,16,0],[CP[0],CP[1],206,13,0],[CP[0],CP[1],300,30,0],[CP[0],CP[1],84,4,1],[CP[0],CP[1],50,1.2,2]);
+  [45,135,225,315].forEach(d=>{const a=d*D2R;rd.push([CP[0]+Math.cos(a)*50,CP[1]+Math.sin(a)*50,CP[0]+Math.cos(a)*119,CP[1]+Math.sin(a)*119,5,1]);});
+  [[138,197,11],[213,285,13]].forEach(([r0,r1,h])=>{for(let i=0;i<8;i++){const a0=RAD[i]+12/r0,a1=(i<7?RAD[i+1]:RAD[0]+6.2832)-12/r0,n=3,gap=3/r1;
+    for(let j=0;j<n;j++){const b0=a0+(a1-a0)*j/n+(j?gap:0),b1=a0+(a1-a0)*(j+1)/n-(j<n-1?gap:0),det=[];
+      for(let q=0;q<(r1-r0)*(b1-b0)*r0/90;q++){const rr=r0+4+R()*(r1-r0-8),aa=b0+R()*(b1-b0);det.push([CP[0]+Math.cos(aa)*rr,CP[1]+Math.sin(aa)*rr,1+R()*1.6]);}
+      B(sector(r0,r1,b0,b1),h+R()*1.5,hex(R()<.75?'#e7e2d7':'#d9d3c6'),null,det);}}});
+  for(let a=0;a<6.2832;a+=9.5/108){if(R()<.85)tr.push([CP[0]+Math.cos(a)*(108+R()*6),CP[1]+Math.sin(a)*(108+R()*6),3.5+R()*2.5,R()*4|0]);}
+  for(let i=0;i<34;i++){const a=R()*6.2832,r=60+R()*40;if(Math.abs(r-84)<5)continue;tr.push([CP[0]+Math.cos(a)*r,CP[1]+Math.sin(a)*r,3+R()*3,R()*4|0]);}
+  RAD.forEach((a,i)=>{const ca=Math.cos(a),sa=Math.sin(a),w=i%2?20:24;rd.push([CP[0]+ca*120,CP[1]+sa*120,CP[0]+ca*2400,CP[1]+sa*2400,w,0]);
+    for(let r=318;r<2300;r+=10+R()*4)for(const s of[-1,1])if(R()<.85){const o=w/2+3.5+R()*1.5;tr.push([CP[0]+ca*r-sa*o*s,CP[1]+sa*r+ca*o*s,3+R()*2.5,R()*4|0]);}});
+  // the grid beyond: avenues lined with trees, dense lanes of houses, bungalows in gardens, parks and office towers
+  const xs=[],ys=[];for(let x=-2400;x<2400;x+=150+R()*120)xs.push(x);for(let y=-2400;y<2400;y+=150+R()*120)ys.push(y);
+  const wx=xs.map((_,i)=>i%5===2?26:10+R()*4),wy=ys.map((_,i)=>i%5===3?26:10+R()*4);
+  function clip(x0,y0,x1,y1,w){const f0=far(x0,y0),f1=far(x1,y1),RR=306;if(f0<RR&&f1<RR)return;
+    if(f0<RR||f1<RR){let a=0,b=1;for(let i=0;i<30;i++){const m=(a+b)/2,inside=far(x0+(x1-x0)*m,y0+(y1-y0)*m)<RR;if((f0<RR)===inside)a=m;else b=m;}const m=(a+b)/2;
+      if(f0<RR){x0+=(x1-x0)*m;y0+=(y1-y0)*m;}else{x1=x0+(x1-x0)*m;y1=y0+(y1-y0)*m;}}
+    if(Math.hypot((x0+x1)/2,(y0+y1)/2)<2350)rd.push([x0,y0,x1,y1,w,0]);}
+  for(let i=0;i<xs.length;i++)for(let j=0;j+1<ys.length;j++)clip(xs[i],ys[j],xs[i],ys[j+1],wx[i]);
+  for(let j=0;j<ys.length;j++)for(let i=0;i+1<xs.length;i++)clip(xs[i],ys[j],xs[i+1],ys[j],wy[j]);
+  const okAt=(x,y,m)=>far(x,y)>312+m&&!nearRadial(x,y,13+m);
+  for(let i=0;i+1<xs.length;i++)for(let j=0;j+1<ys.length;j++){
+    const x0=xs[i]+wx[i]/2+2,x1=xs[i+1]-wx[i+1]/2-2,y0=ys[j]+wy[j]/2+2,y1=ys[j+1]-wy[j+1]/2-2,mx=(x0+x1)/2,my=(y0+y1)/2;
+    if(far(mx,my)<330||Math.hypot(mx,my)>2300)continue;
+    const n=fbm(mx/600+9,my/600+3,3),r=far(mx,my),t=n>.64?'park':R()<(my>250?.55:.1)?'green':(r<850&&R()<.35)?'tall':'dense';
+    gp.push({p:box(x0,y0,x1,y1),c:{park:'#5b7740',green:'#617a46',tall:'#8a857c',dense:'#857c6f'}[t]});
+    if(t==='dense'){const along=x1-x0>=y1-y0,L0=along?x0:y0,L1=along?x1:y1,S0=along?y0:x0,S1=along?y1:x1,sh=S1-S0,nr=Math.max(2,Math.round(sh/26)),dp=(sh-(nr-1)*4)/nr;
+      for(let q=0;q<nr;q++){const s0=S0+q*(dp+4),s1=s0+dp;
+        for(let l=L0;l<L1-4;){const pw=Math.min(L1-l,6+R()*10),a=l+.3,b=l+pw-.3,mx2=along?(a+b)/2:(s0+s1)/2,my2=along?(s0+s1)/2:(a+b)/2;
+          if(R()>.07&&okAt(mx2,my2,pw/2)){const h=3.1*(1+(R()*4|0))+R()*.8,col=R()<.03?hex('#3f6fa6'):R()<.05?hex('#a5634a'):ROOF[R()*ROOF.length|0];
+            B(along?box(a,s0,b,s1):box(s0,a,s1,b),h,col,R()<.65?[mx2+(R()-.5)*pw*.4,my2+(R()-.5)*dp*.4,.55+R()*.3]:null,null);}
+          else if(R()<.4&&okAt(mx2,my2,2))tr.push([mx2,my2,2+R()*2,R()*4|0]);
+          l+=pw;}}}
+    else if(t==='green'){const rects=[];for(let q=0;q<1+(R()*2|0);q++){const w=16+R()*14,d=12+R()*10,bx=x0+8+R()*Math.max(1,x1-x0-16-w),by=y0+8+R()*Math.max(1,y1-y0-16-d);
+        if(!okAt(bx+w/2,by+d/2,w/2))continue;rects.push([bx,by,bx+w,by+d]);B(box(bx,by,bx+w,by+d),6+R()*3,hex(['#e5e0d5','#dccdb5','#b98a6a','#d9d4c9'][R()*4|0]),null,null);}
+      for(let q=0;q<(x1-x0)*(y1-y0)/230;q++){const x=x0+3+R()*(x1-x0-6),y=y0+3+R()*(y1-y0-6);if(rects.some(e=>x>e[0]-3&&x<e[2]+3&&y>e[1]-3&&y<e[3]+3)||!okAt(x,y,2))continue;tr.push([x,y,2.5+R()*3.5,R()*4|0]);}}
+    else if(t==='park'){for(let q=0;q<(x1-x0)*(y1-y0)/170;q++){const x=x0+3+R()*(x1-x0-6),y=y0+3+R()*(y1-y0-6);if(okAt(x,y,2)&&fbm(x/40,y/40,2)>.42)tr.push([x,y,2.5+R()*4,R()*4|0]);}}
+    else{for(let q=0;q<1+(R()*3|0);q++){const w=24+R()*36,d=20+R()*30,bx=x0+4+R()*Math.max(1,x1-x0-8-w),by=y0+4+R()*Math.max(1,y1-y0-8-d);if(!okAt(bx+w/2,by+d/2,w/2))continue;
+        const det=[];for(let e=0;e<w*d/90;e++)det.push([bx+2+R()*(w-4),by+2+R()*(d-4),.8+R()*2.2]);
+        B(box(bx,by,bx+w,by+d),18+R()*45,hex(['#9aa3a8','#7f8a92','#b8b4ab','#6d7880','#a9a197'][R()*5|0]),null,det);}}
+  }
+  rd.forEach(r=>{if(r[5]||r[4]<20)return;const L=Math.hypot(r[2]-r[0],r[3]-r[1]),ux=(r[2]-r[0])/L,uy=(r[3]-r[1])/L;
+    for(let s=6;s<L;s+=12+R()*3)for(const sd of[-1,1])if(R()<.8){const o=(r[4]/2+3.5)*sd,x=r[0]+ux*s-uy*o,y=r[1]+uy*s+ux*o;if(okAt(x,y,1))tr.push([x,y,3+R()*2.5,R()*4|0]);}});
+  // streetlamps every 30 m
+  rd.forEach(r=>{if(r[5])return;const L=Math.hypot(r[2]-r[0],r[3]-r[1]),ux=(r[2]-r[0])/L,uy=(r[3]-r[1])/L;for(let s=10;s<L;s+=30)for(const sd of r[4]>15?[-1,1]:[1]){const o=(r[4]/2+1)*sd;lp.push([r[0]+ux*s-uy*o,r[1]+uy*s+ux*o]);}});
+  rg.forEach(r=>{if(r[4])return;for(let a=0;a<6.2832;a+=25/r[2])for(const sd of[-1,1])lp.push([r[0]+Math.cos(a)*(r[2]+sd*(r[3]/2+1)),r[1]+Math.sin(a)*(r[2]+sd*(r[3]/2+1))]);});
+  bl.sort((a,b)=>a.h-b.h);
+  // traffic: cars, buses and auto-rickshaws, driving on the left
+  const CARS=[['#f2f2ef',4.4,1.8],['#c9ccce',4.4,1.8],['#2a2c30',4.6,1.85],['#9b1d20',4.2,1.75],['#2c4d7a',4.4,1.8],['#f2f2ef',4.0,1.7],['#3c7d3a',2.7,1.4,1],['#3c7d3a',2.7,1.4,1],['#c8551f',11,2.5,2]];
+  const cars=[];
+  rd.forEach((r,i)=>{if(r[5])return;const L=Math.hypot(r[2]-r[0],r[3]-r[1]),n=Math.floor(L/(r[4]>15?26:60)*R()*1.7);
+    for(let q=0;q<n;q++){const dir=R()<.5?1:-1;cars.push({r:i,t:R(),v:dir*(5+R()*9)/L,o:-dir*(r[4]>15?(R()<.5?.15:.33):.22)*r[4],ty:CARS[R()*CARS.length|0]});}});
+  rg.forEach((r,i)=>{if(r[4])return;const n=Math.floor(6.2832*r[2]/(r[3]>20?12:22));for(let q=0;q<n;q++)cars.push({g:i,t:R()*6.2832,v:(5+R()*7)/r[2],o:(r[3]>20?(R()<.5?.15:.33):.22)*r[3],ty:CARS[R()*CARS.length|0]});});
+  // people: on the plaza and the lawn of Central Park, and under the colonnades of the inner circle
+  const ppl=[],P0=o=>Object.assign({sh:SHIRT[R()*SHIRT.length|0],hr:HAIR[R()*HAIR.length|0],s:.88+R()*.24,ph:R()*6.28,dp:R()<.22?SHIRT[R()*SHIRT.length|0]:null},o);
+  for(let q=0;q<320;q++){const r=q<140?Math.sqrt(R())*47:52+R()*62,a=R()*6.2832,mv=R()<.6;ppl.push(P0({x:CP[0]+Math.cos(a)*r,y:CP[1]+Math.sin(a)*r,a:R()*6.2832,v:mv?.7+R()*.7:0,sit:!mv&&q>=140&&R()<.5}));}
+  for(let q=0;q<260;q++){const rr=R()<.5?137.6+R()*1.2:118.4+R()*1.2,a=R()*6.2832,d=R()<.5?1:-1;ppl.push(P0({ring:rr,ang:a,w:d*(.9+R()*.6)/rr,x:0,y:0,a:0,v:1}));}
+  ppl.forEach(p=>{if(Math.hypot(p.x+.8,p.y)<3.5)p.x-=4;});
+  return {bl,tr,rd,rg,gp,lp,cars,ppl};
+})();
+// your friends, and you: standing in the plaza, your right arm held out
+const FRIENDS=[{x:-1.75,y:-.45,a:0,sh:SHIRT[0],hr:HAIR[0],s:.95,dp:SHIRT[3]},{x:-1.05,y:1.15,a:-2.2,sh:SHIRT[6],hr:HAIR[2],s:1.05},{x:.55,y:-1.45,a:2.1,sh:SHIRT[10],hr:HAIR[1],s:1}];
+const YOU={x:-.8,y:.02,a:-Math.PI/2,sh:hex('#2b3a55'),hr:hex('#120d0a'),s:1.04};
+
+/* sprites */
+const TREES=[0,1,2,3].map(v=>mk(128,128,x=>{const R=rng(50+v),G=[['#2f4a22','#3d5e2a','#4f7234','#5f8240'],['#334d25','#466a2f','#5a7d3a','#6d8f47'],['#2b4220','#3a5629','#486b31','#577a3b'],['#3a4f26','#506a31','#64813c','#7a9449']][v];
+  for(let i=0;i<70;i++){const a=R()*6.2832,r=Math.sqrt(R())*36,px=64+Math.cos(a)*r,py=64+Math.sin(a)*r,s=9+R()*13,g=x.createRadialGradient(px-s*.35,py-s*.35,1,px,py,s);
+    g.addColorStop(0,G[3]);g.addColorStop(.5,G[2]);g.addColorStop(.85,G[1]);g.addColorStop(1,'rgba(30,45,20,0)');x.fillStyle=g;x.beginPath();x.arc(px,py,s,0,6.2832);x.fill();}
+  x.globalCompositeOperation='source-atop';const s2=x.createRadialGradient(50,50,10,64,64,64);s2.addColorStop(0,'rgba(255,255,220,.06)');s2.addColorStop(.7,'rgba(0,0,0,0)');s2.addColorStop(1,'rgba(0,0,0,.35)');x.fillStyle=s2;x.fillRect(0,0,128,128);}));
+const TMIP=TREES.map(t=>[64,32,16].reduce((l,n)=>{l.push(mk(n,n,x=>{x.imageSmoothingQuality='high';x.drawImage(l[l.length-1],0,0,n,n);}));return l;},[t]));
+const RBCS=[0,1,2].map(v=>mk(96,96,x=>{x.translate(48,48);
+  if(v<2){if(v===1)x.scale(1,.55);const g=x.createRadialGradient(-3,-3,1,0,0,40);g.addColorStop(0,'rgba(232,150,135,.9)');g.addColorStop(.3,'rgba(214,104,96,.92)');g.addColorStop(.6,'rgba(178,42,48,.95)');
+    g.addColorStop(.84,'rgba(196,62,62,.95)');g.addColorStop(.95,'rgba(150,28,36,.8)');g.addColorStop(1,'rgba(150,28,36,0)');x.fillStyle=g;x.beginPath();x.arc(0,0,40,0,6.2832);x.fill();}
+  else{const prof=r=>{r=Math.min(1,Math.abs(r));return Math.sqrt(Math.max(0,1-r*r))*(.207+2*r*r-1.123*r**4);};x.beginPath();
+    for(let i=0;i<=40;i++){const r=-1+i/20;x.lineTo(r*40,-prof(r)*20-1);}for(let i=40;i>=0;i--){const r=-1+i/20;x.lineTo(r*40,prof(r)*20+1);}x.closePath();
+    const g=x.createLinearGradient(0,-14,0,14);g.addColorStop(0,'#c24448');g.addColorStop(.5,'#9a1c24');g.addColorStop(1,'#b8383e');x.fillStyle=g;x.fill();}}));
+const BEAD=radial(64,[[0,'rgba(20,20,20,.95)'],[.55,'rgba(35,35,35,.85)'],[.8,'rgba(60,60,60,.4)'],[1,'rgba(80,80,80,0)']]);
+const BUMP=radial(64,[[0,'#fff5d0'],[.25,'#f9b546'],[.5,'#c9600f'],[.78,'rgba(110,38,6,.6)'],[1,'rgba(60,20,4,0)']]);
+const AFMC=t=>{const s=[[0,[20,6,2]],[.3,[96,32,5]],[.55,[196,90,16]],[.8,[246,168,62]],[1,[255,244,205]]];for(let i=1;i<s.length;i++)if(t<=s[i][0]){const a=s[i-1],b=s[i];return mix(a[1],b[1],(t-a[0])/(b[0]-a[0]));}return s[4][1];};
+// a tile of skin texture, 2 cm across, to lay over the hand
+const SKT=mk(512,512,x=>{const R=rng(9);
+  [[.35,140],[-.6,140],[1.25,60]].forEach(([a,n])=>{for(let i=0;i<n;i++){wavy(x,R()*512,R()*512,a+(R()-.5)*.3,40+R()*120,.25,6,R);x.lineWidth=1.2;x.strokeStyle='rgba(50,24,12,.35)';x.stroke();}});
+  for(let i=0;i<500;i++){x.fillStyle='rgba(40,20,10,.45)';x.fillRect(R()*512,R()*512,1.5,1.5);}});
+
+/* ---------- the micro world: rasters painted once ---------- */
+let L70=null,L70N=null,L12=null,L12N=null,SK1=null,SK2=null,TS=null,WBC=null,FL=null;
+function paintL12(){
+  const extra=(x,toPx,pk,R,Uat)=>{ // colonies of houses on their own street grids, then Connaught Place itself
+    for(let X=-6;X<6;X+=.4)for(let Y=-6;Y<6;Y+=.4){const U=Uat(X+.2,Y+.2);if(U<.5||Math.hypot((X+.2)*1000-CP[0],(Y+.2)*1000-CP[1])<2300)continue;if(Math.abs(X+.2-rivX(Y+.2))<1.4)continue;
+      const ang=(hs(X*10|0,Y*10|0)-.5)*.6+(fbm(X/3,Y/3,2)-.5)*1.5,s=.045+.035*hs(Y*10|0,X*10|0),p=toPx(X+.2,Y+.2);
+      x.save();x.translate(p[0],p[1]);x.rotate(ang);const half=.25*pk,sp=s*pk,paths=ROOF.slice(0,8).map(()=>new Path2D());
+      for(let u=-half;u<half;u+=sp)for(let v=-half;v<half;v+=sp){if(R()<.08)continue;for(let q=0;q<2;q++){paths[R()*8|0].rect(u+R()*sp*.45,v+R()*sp*.45,sp*(.3+R()*.35),sp*(.3+R()*.35));}}
+      x.globalAlpha=Math.min(1,U*1.3);paths.forEach((pa,i)=>{x.fillStyle=rgb(ROOF[i]);x.fill(pa);});
+      x.strokeStyle='rgba(120,116,108,.6)';x.lineWidth=Math.max(1,.008*pk);x.beginPath();for(let u=-half;u<=half;u+=sp){x.moveTo(u-sp*.08,-half);x.lineTo(u-sp*.08,half);x.moveTo(-half,u-sp*.08);x.lineTo(half,u-sp*.08);}x.stroke();
+      x.restore();x.globalAlpha=1;}
+    drawFlat(x,toPx,pk/1000,false);};
+  const extraN=(x,toPx,pk,R,Uat)=>{
+    for(let X=-6;X<6;X+=.4)for(let Y=-6;Y<6;Y+=.4){const U=Uat(X+.2,Y+.2);if(U<.42)continue;const ang=(hs(X*10|0,Y*10|0)-.5)*.6+(fbm(X/3,Y/3,2)-.5)*1.5,s=.045+.035*hs(Y*10|0,X*10|0),p=toPx(X+.2,Y+.2);
+      x.save();x.translate(p[0],p[1]);x.rotate(ang);const half=.25*pk,sp=s*pk;x.strokeStyle='rgba(255,165,70,'+(.05+.17*U).toFixed(2)+')';x.lineWidth=1;x.beginPath();
+      for(let u=-half;u<=half;u+=sp){if(R()<.4)continue;x.moveTo(u,-half);x.lineTo(u,half);x.moveTo(-half,u);x.lineTo(half,u);}x.stroke();x.restore();}
+    drawFlat(x,toPx,pk/1000,true);};
+  L12=paintMap(2048,12,false,extra);paintL12N=()=>{L12N=paintMap(1024,12,true,extraN);};
+}
+let paintL12N=()=>{};
+// Connaught Place and its streets from straight above, for the city map (lights=true: at night)
+function drawFlat(x,toPx,pm,lights){
+  const D=CITYD;x.lineCap='round';
+  if(!lights){D.gp.forEach(q=>{x.fillStyle=q.c;x.beginPath();if(q.r){const p=toPx(q.x/1000,q.y/1000);x.arc(p[0],p[1],q.r*pm,0,6.2832);}else{for(let i=0;i<q.p.length;i+=2){const p=toPx(q.p[i]/1000,q.p[i+1]/1000);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);}}x.fill();});}
+  const col=lights?'rgba(255,170,80,.5)':'#4b4c4e';
+  D.rd.forEach(r=>{if(lights&&r[5])return;const a=toPx(r[0]/1000,r[1]/1000),b=toPx(r[2]/1000,r[3]/1000);x.strokeStyle=r[5]?'#c2b8a4':col;x.lineWidth=Math.max(lights?.8:.6,r[4]*pm*(lights?.6:1));x.beginPath();x.moveTo(a[0],a[1]);x.lineTo(b[0],b[1]);x.stroke();});
+  D.rg.forEach(r=>{if(lights&&r[4])return;const p=toPx(r[0]/1000,r[1]/1000);x.strokeStyle=r[4]?'#c2b8a4':lights?'rgba(255,225,170,.7)':col;x.lineWidth=Math.max(.6,r[3]*pm);x.beginPath();x.arc(p[0],p[1],r[2]*pm,0,6.2832);x.stroke();});
+  if(lights)return;
+  D.bl.forEach(b=>{x.fillStyle=rgb(b.c);x.beginPath();for(let i=0;i<b.p.length;i+=2){const p=toPx(b.p[i]/1000,b.p[i+1]/1000);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);}x.fill();});
+  x.fillStyle='rgba(45,68,32,.85)';D.tr.forEach(t=>{const p=toPx(t[0]/1000,t[1]/1000);x.beginPath();x.arc(p[0],p[1],Math.max(.5,t[2]*pm),0,6.2832);x.fill();});
+}
+function paintSkin1(){ // the back of your hand, 4 cm across: furrows, pores, a few hairs
+  SK1=mk(2048,2048,x=>{const R=rng(31),N=2048;x.fillStyle='#8c5a3b';x.fillRect(0,0,N,N);
+    x.globalAlpha=.75;x.drawImage(field(160,(u,v)=>mix(hex('#77482d'),hex('#a5704f'),fbm(u*7,v*7,4))),0,0,N,N);x.globalAlpha=1;
+    x.lineCap='round';
+    [[.35,300],[-.6,300],[1.25,120]].forEach(([a,n])=>{for(let i=0;i<n;i++){const x0=R()*N,y0=R()*N,an=a+(R()-.5)*.25,len=80+R()*420;
+      wavy(x,x0,y0,an,len,.22,8,R);x.lineWidth=1.8;x.strokeStyle='rgba(55,28,14,.34)';x.stroke();
+      x.save();x.translate(-Math.sin(an)*1.6,Math.cos(an)*1.6);x.lineWidth=1;x.strokeStyle='rgba(245,200,170,.10)';x.stroke();x.restore();}});
+    for(let i=0;i<3000;i++){wavy(x,R()*N,R()*N,(R()<.5?.35:-.6)+(R()-.5)*.4,15+R()*45,.3,3,R);x.lineWidth=.8;x.strokeStyle='rgba(60,30,15,.16)';x.stroke();}
+    for(let i=0;i<340;i++){x.fillStyle='rgba(50,25,12,.5)';x.beginPath();x.arc(R()*N,R()*N,1+R()*.9,0,6.2832);x.fill();}
+    for(let i=0;i<26;i++){const x0=R()*N,y0=R()*N,a=(R()-.5)*1.2,l=50+R()*110;x.beginPath();x.moveTo(x0,y0);x.quadraticCurveTo(x0+Math.cos(a)*l*.5+(R()-.5)*40,y0+Math.sin(a)*l*.5+(R()-.5)*40,x0+Math.cos(a+(R()-.5))*l,y0+Math.sin(a+(R()-.5))*l);
+      x.lineWidth=.6;x.strokeStyle='rgba(32,20,12,.35)';x.stroke();}
+    x.lineCap='round';x.strokeStyle='rgba(75,80,115,.10)';x.lineWidth=70;wavy(x,0,N*.62,-.08,N,.2,10,R);x.stroke();wavy(x,N*.1,N*.2,.25,N*.9,.2,10,R);x.stroke();
+    feather(x,N,.74);});
+}
+function paintSkin2(){ // 4 mm across: the plateaus between furrows, flakes of dead skin, one hair leaving its pore
+  SK2=mk(2048,2048,x=>{const R=rng(41),N=2048;x.fillStyle='#93603f';x.fillRect(0,0,N,N);
+    x.globalAlpha=.8;x.drawImage(field(160,(u,v)=>mix(hex('#7c4b30'),hex('#a87452'),fbm(u*5+3,v*5,4))),0,0,N,N);x.globalAlpha=1;x.lineCap='round';
+    [[.35,26],[-.6,26],[1.25,10]].forEach(([a,n])=>{for(let i=0;i<n;i++){const x0=R()*N*1.2-N*.1,y0=R()*N*1.2-N*.1,an=a+(R()-.5)*.2;
+      wavy(x,x0,y0,an,500+R()*1200,.12,14,R);x.lineWidth=30;x.strokeStyle='rgba(60,30,15,.12)';x.stroke();x.lineWidth=11;x.strokeStyle='rgba(50,24,12,.32)';x.stroke();
+      x.save();x.translate(-Math.sin(an)*9,Math.cos(an)*9);x.lineWidth=4;x.strokeStyle='rgba(255,215,185,.13)';x.stroke();x.restore();}});
+    for(let i=0;i<9000;i++){const px=R()*N,py=R()*N,s=7+R()*10,a=R()*3.14;x.beginPath();for(let q=0;q<5;q++){const b=a+q*1.2566+(R()-.5)*.5;x.lineTo(px+Math.cos(b)*s,py+Math.sin(b)*s);}x.closePath();
+      x.fillStyle=R()<.5?'rgba(255,225,200,.045)':'rgba(70,35,20,.05)';x.fill();x.strokeStyle='rgba(255,230,210,.09)';x.lineWidth=.8;x.stroke();}
+    const hx0=N*.5+150,hy0=N*.5-80;const g=x.createRadialGradient(hx0,hy0,0,hx0,hy0,60);g.addColorStop(0,'rgba(30,15,8,.9)');g.addColorStop(1,'rgba(30,15,8,0)');x.fillStyle=g;x.beginPath();x.arc(hx0,hy0,60,0,6.2832);x.fill();
+    x.beginPath();x.moveTo(hx0,hy0);x.bezierCurveTo(hx0+300,hy0-40,hx0+700,hy0+60,hx0+1100,hy0-30);x.lineWidth=34;x.strokeStyle='#1d120c';x.stroke();
+    x.lineWidth=8;x.strokeStyle='rgba(190,150,120,.25)';x.save();x.translate(0,-8);x.stroke();x.restore();
+    x.setLineDash([2,9]);x.lineWidth=30;x.strokeStyle='rgba(255,255,255,.07)';x.stroke();x.setLineDash([]);
+    feather(x,N,.74);});
+}
+// tissue under the skin, 2.5 mm across: collagen, cells, capillaries, and the vessel the zoom follows (along x, 80 µm inside)
+const LR=40;   // the vessel's inner radius, µm
+function paintTissue(){
+  TS=mk(2048,2048,x=>{const R=rng(51),N=2048,pu=N/2500,X=v=>N/2+v*pu;x.fillStyle='#ecc9c6';x.fillRect(0,0,N,N);
+    x.globalAlpha=.8;x.drawImage(field(160,(u,v)=>mix(hex('#e0b2b2'),hex('#f3dcd7'),fbm(u*6,v*6,4))),0,0,N,N);x.globalAlpha=1;x.lineCap='round';
+    for(let i=0;i<1500;i++){wavy(x,R()*N,R()*N,R()*6.28,100+R()*380,.7,10,R);x.lineWidth=3+R()*7;x.strokeStyle='rgba(205,128,140,.17)';x.stroke();}
+    for(let i=0;i<300;i++){wavy(x,R()*N,R()*N,R()*6.28,60+R()*200,1,10,R);x.lineWidth=1;x.strokeStyle='rgba(120,50,85,.2)';x.stroke();}
+    for(let i=0;i<800;i++){x.fillStyle='rgba(92,44,112,.6)';x.beginPath();x.ellipse(R()*N,R()*N,4+R()*3,1.6+R(),R()*3.14,0,6.2832);x.fill();}
+    for(let i=0;i<14;i++){const sx=R()*N,sy=R()<.5?R()*N*.42:N*.58+R()*N*.42;wavy(x,sx,sy,R()*6.28,300+R()*900,.5,40,R);
+      x.lineWidth=11;x.strokeStyle='rgba(200,110,110,.55)';x.stroke();x.lineWidth=6.5;x.strokeStyle='#b23a40';x.stroke();x.setLineDash([3,4]);x.lineWidth=5;x.strokeStyle='#8e1820';x.stroke();x.setLineDash([]);}
+    // the vessel: wall with its long muscle nuclei, then blood
+    x.fillStyle='#d898a2';x.fillRect(0,X(-LR-9),N,(2*LR+18)*pu);
+    for(let i=0;i<260;i++){const yy=(R()<.5?-1:1)*(LR+2+R()*6);x.fillStyle='rgba(88,40,105,.75)';x.beginPath();x.ellipse(R()*N,X(yy),6+R()*4,1.5+R()*.6,(R()-.5)*.1,0,6.2832);x.fill();}
+    x.fillStyle='#b8323a';x.fillRect(0,X(-LR),N,2*LR*pu);
+    for(let i=0;i<9000;i++){x.fillStyle=R()<.5?'rgba(150,20,30,.55)':'rgba(215,90,90,.45)';x.beginPath();x.arc(R()*N,X((R()*2-1)*LR*.95),2+R()*1.6,0,6.2832);x.fill();}
+    x.fillStyle='rgba(255,255,255,.06)';x.fillRect(0,X(-LR*.4),N,LR*.5*pu);
+    feather(x,N,.8);});
+}
+// a neutrophil, 12 µm, stained the way a blood test stains it; one lobe of its nucleus sits on the zoom's axis
+const WBC_C=[1.5,.2],LOBES=[[0,0,1.9,1.45,.35],[2.9,-2.4,1.7,1.3,-.5],[3.6,1.9,1.6,1.25,.9]];
+function paintWBC(){
+  WBC=mk(1024,1024,x=>{const R=rng(61),pu=1024/14,X=v=>512+v*pu;x.lineCap='round';
+    const edge=[];for(let i=0;i<72;i++){const a=i/72*6.2832,r=6+.35*(fbm(Math.cos(a)*2+5,Math.sin(a)*2,3)-.5)*2;edge.push([X(WBC_C[0]+Math.cos(a)*r),X(WBC_C[1]+Math.sin(a)*r)]);}
+    const cell=new Path2D();edge.forEach((p,i)=>i?cell.lineTo(p[0],p[1]):cell.moveTo(p[0],p[1]));cell.closePath();
+    const g=x.createRadialGradient(X(WBC_C[0]),X(WBC_C[1]),0,X(WBC_C[0]),X(WBC_C[1]),6.2*pu);g.addColorStop(0,'#e6d6e2');g.addColorStop(.85,'#d4bdd2');g.addColorStop(1,'#b896b6');
+    x.fillStyle=g;x.fill(cell);x.save();x.clip(cell);
+    for(let i=0;i<11000;i++){const a=R()*6.2832,r=Math.sqrt(R())*6*pu;x.fillStyle=R()<.6?'rgba(165,105,165,.35)':'rgba(205,150,190,.32)';x.beginPath();x.arc(X(WBC_C[0])+Math.cos(a)*r,X(WBC_C[1])+Math.sin(a)*r,1.2+R()*1.8,0,6.2832);x.fill();}
+    const nuc=new Path2D();LOBES.forEach(l=>{nuc.ellipse(X(l[0]),X(l[1]),l[2]*pu,l[3]*pu,l[4],0,6.2832);});
+    x.strokeStyle='#4b2462';x.lineWidth=.22*pu;x.beginPath();x.moveTo(X(0),X(0));x.quadraticCurveTo(X(1.6),X(-1.6),X(2.9),X(-2.4));x.moveTo(X(2.9),X(-2.4));x.quadraticCurveTo(X(3.9),X(-.2),X(3.6),X(1.9));x.stroke();
+    x.fillStyle='#4f2766';x.fill(nuc);x.save();x.clip(nuc);
+    for(let i=0;i<3200;i++){const l=LOBES[R()*3|0],a=R()*6.2832,r=Math.sqrt(R());x.fillStyle=R()<.6?'rgba(40,16,58,.32)':'rgba(130,90,150,.22)';x.beginPath();x.arc(X(l[0]+Math.cos(a)*r*l[2]),X(l[1]+Math.sin(a)*r*l[3]),3+R()*11,0,6.2832);x.fill();}
+    x.restore();x.strokeStyle='rgba(35,12,50,.55)';x.lineWidth=3;x.stroke(nuc);
+    x.restore();x.strokeStyle='rgba(110,70,110,.5)';x.lineWidth=3;x.stroke(cell);});
+}
+// a spectral karyotype: the 46 chromosomes of a dividing cell, each painted with its own fluorescent dye
+const MBP=[249,242,198,190,181,171,159,145,138,134,135,133,114,107,102,90,83,80,59,64,47,51,156,57];
+const SKY=['#ff3b30','#ff9500','#ffcc00','#34c759','#00c7be','#30b0ff','#5856d6','#af52de','#ff2d92','#d9a066','#ff6b6b','#ffd166','#06d6a0','#118ab2','#ef476f','#f78c6b','#83d483','#9b5de5','#f15bb5','#00bbf9','#00f5d4','#fee440','#ff8fab','#c0fdff'];
+const KAR=(function(){const R=rng(23),list=[];
+  for(let i=0;i<24;i++)for(let j=0;j<(i<22?2:1);j++)list.push({n:i,L:1.5+MBP[i]/249*7,cf:.25+R()*.25,col:SKY[i]});
+  const placed=[];list.forEach((q,i)=>{if(i===0){Object.assign(q,{x:-1,y:.36,a:0,bend:.04});placed.push(q);return;}
+    for(let t=0;t<600;t++){const a=R()*6.2832,r=Math.sqrt(R())*12.5;q.x=Math.cos(a)*r;q.y=Math.sin(a)*r;q.a=R()*3.1416;q.bend=(R()-.5)*.5;if(placed.every(p=>Math.hypot(p.x-q.x,p.y-q.y)>(p.L+q.L)/2*.75+.7))break;}placed.push(q);});
+  return list;})();
+function paintFL(){
+  FL=mk(2048,2048,x=>{const R=rng(71),N=2048,pu=N/30,X=v=>N/2+v*pu;x.fillStyle='#000';x.fillRect(0,0,N,N);x.lineCap='round';
+    [[-11,9],[12,-10],[13,11]].forEach(p=>{const g=x.createRadialGradient(X(p[0]),X(p[1]),0,X(p[0]),X(p[1]),5*pu);g.addColorStop(0,'rgba(60,80,210,.32)');g.addColorStop(1,'rgba(60,80,210,0)');x.fillStyle=g;x.fillRect(0,0,N,N);});
+    KAR.forEach(q=>{const ux=Math.cos(q.a),uy=Math.sin(q.a),nx=-uy,ny=ux,cen=-q.L/2+q.cf*q.L;
+      [-1,1].forEach(sd=>{const pts=[[-q.L/2,.36],[cen,.2],[q.L/2,.36]].map(([s,o])=>{const bend=q.bend*s*s/q.L;return [q.x+ux*s+nx*(sd*o+bend),q.y+uy*s+ny*(sd*o+bend)];});
+        const arm=(a,b)=>{x.beginPath();x.moveTo(X(a[0]),X(a[1]));x.lineTo(X(b[0]),X(b[1]));};
+        [[pts[0],pts[1]],[pts[1],pts[2]]].forEach(([a,b],ai)=>{
+          x.save();x.shadowColor=q.col;x.shadowBlur=26;x.strokeStyle=q.col;x.lineWidth=.62*pu;arm(ai?[a[0]+ux*.1,a[1]+uy*.1]:a,ai?b:[b[0]-ux*.1,b[1]-uy*.1]);x.stroke();x.restore();
+          x.strokeStyle='rgba(255,255,255,.28)';x.lineWidth=.22*pu;x.stroke();
+          const dl=[];for(let s=0;s<14;s++)dl.push((.08+R()*.25)*pu);x.setLineDash(dl);x.strokeStyle='rgba(0,0,0,.22)';x.lineWidth=.6*pu;x.stroke();x.setLineDash([]);});});});
+    x.globalCompositeOperation='screen';x.globalAlpha=.05;x.drawImage(grain,0,0,N,N);x.globalAlpha=1;x.globalCompositeOperation='source-over';});
+}
+// chromatin as an electron microscope sees it (nm): 30 nm fibres, each a zigzag of nucleosomes on a thread of DNA
+const FIB=(function(){const R=rng(81),list=[];
+  const add=pts=>{const beads=[];let acc=0,flip=1;for(let i=1;i<pts.length;i++){const a=pts[i-1],b=pts[i],L=Math.hypot(b[0]-a[0],b[1]-a[1]),ux=(b[0]-a[0])/L,uy=(b[1]-a[1])/L;
+      for(let s=(20-acc)%20;s<L;s+=20){flip=-flip;beads.push(a[0]+ux*s-uy*7*flip,a[1]+uy*s+ux*7*flip);}acc=(acc+L)%20;}
+    let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;pts.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1]);});
+    list.push({pts,beads:new Float32Array(beads),b:[x0-20,y0-20,x1+20,y1+20]});};
+  // the fibre the zoom follows: straight through the origin, beads either side of a bare stretch of DNA
+  const sp=[];for(let x=-1500;x<=1500;x+=22)sp.push([x,Math.abs(x)<60?0:30*Math.sin(x/150)*ss(60,300,Math.abs(x))]);
+  const beads=[];for(let i=0;i<70;i++){const xx=12+i*20,o=i?(i%2?7:-7):0;beads.push(xx,o,-xx,-o);}
+  list.push({pts:sp,beads:new Float32Array(beads),b:[-1520,-60,1520,60],main:true});
+  for(let f=0;f<170;f++){let x=(R()*2-1)*1500,y=(R()<.8?(R()*2-1)*380:(R()*2-1)*650),a=R()*6.2832;const pts=[[x,y]];
+    for(let i=0;i<30+R()*40;i++){a+=(R()-.5)*1.1;x+=Math.cos(a)*24;y+=Math.sin(a)*24;if(Math.abs(y)>420&&R()<.5)a=-a;pts.push([x,y]);}
+    if(pts.some(p=>Math.abs(p[1])<25&&Math.abs(p[0])<80))continue;add(pts);}
+  return list;})();
+
+/* ---------- drawing the ground: city, streets, people ---------- */
+let sv=[0,0],shA=.4,night=0,Zc=0;
+function poly(p,h){for(let i=0;i<p.length;i+=2){S(p[i],p[i+1],h);i?c.lineTo(P[0],P[1]):c.moveTo(P[0],P[1]);}c.closePath();}
+function drawCity(a){
+  const D=CITYD,k0=k(0),VR=Math.hypot(W,H)/2/k0+15,inV=b=>b[2]>-VR&&b[0]<VR&&b[3]>-VR&&b[1]<VR;
+  c.globalAlpha=a;T(0,1);
+  D.gp.forEach(q=>{c.fillStyle=q.c;c.beginPath();if(q.r){if(Math.hypot(q.x,q.y)-q.r>VR)return;c.arc(q.x,q.y,q.r,0,6.2832);}else{if(!inV([q.p[0],q.p[1],q.p[4],q.p[5]]))return;c.rect(q.p[0],q.p[1],q.p[4]-q.p[0],q.p[5]-q.p[1]);}c.fill();});
+  // a mottled texture for grass, dust and asphalt
+  c.save();c.globalCompositeOperation='overlay';c.globalAlpha=a*.35;const pat=c.createPattern(grain,'repeat');const m=new DOMMatrix();pat.setTransform(m.scaleSelf(Math.max(.02,.6/k0*3)));c.fillStyle=pat;c.fillRect(-VR,-VR,2*VR,2*VR);c.restore();
+  c.globalAlpha=a;c.lineCap='butt';
+  const road=(r,w,col)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(r[0],r[1]);c.lineTo(r[2],r[3]);c.stroke();};
+  const vis=r=>inV([Math.min(r[0],r[2])-r[4],Math.min(r[1],r[3])-r[4],Math.max(r[0],r[2])+r[4],Math.max(r[1],r[3])+r[4]]);
+  D.rd.forEach(r=>{if(vis(r)&&!r[5])road(r,r[4]+4,'#a49d92');});
+  D.rg.forEach(r=>{if(r[4])return;c.strokeStyle='#a49d92';c.lineWidth=r[3]+4;c.beginPath();c.arc(r[0],r[1],r[2],0,6.2832);c.stroke();});
+  D.rd.forEach(r=>{if(vis(r))road(r,r[4],r[5]?'#c3b9a5':'#47484b');});
+  D.rg.forEach(r=>{c.strokeStyle=r[4]===1?'#c3b9a5':r[4]===2?'#9c9385':'#47484b';c.lineWidth=r[3];c.beginPath();c.arc(r[0],r[1],r[2],0,6.2832);c.stroke();});
+  if(k0*.15>.6){c.setLineDash([3,6]);c.lineWidth=.15;c.strokeStyle='rgba(235,235,225,.55)';
+    D.rd.forEach(r=>{if(r[5]||r[4]<15||!vis(r))return;const L=Math.hypot(r[2]-r[0],r[3]-r[1]),nx=-(r[3]-r[1])/L,ny=(r[2]-r[0])/L;[-.25,.25].forEach(f=>{c.beginPath();c.moveTo(r[0]+nx*r[4]*f,r[1]+ny*r[4]*f);c.lineTo(r[2]+nx*r[4]*f,r[3]+ny*r[4]*f);c.stroke();});});
+    D.rg.forEach(r=>{if(r[4])return;c.beginPath();c.arc(r[0],r[1],r[2],0,6.2832);c.stroke();});c.setLineDash([]);
+    c.lineWidth=.35;c.strokeStyle='rgba(225,215,190,.6)';D.rd.forEach(r=>{if(r[5]||r[4]<20||!vis(r))return;c.beginPath();c.moveTo(r[0],r[1]);c.lineTo(r[2],r[3]);c.stroke();});}
+  // shadows: every building, tree and car casts one away from the sun
+  // (drawn solid on their own layer, then laid down at once, so overlapping shadows don't double up)
+  const keep=c;c=sx;I();c.clearRect(0,0,W,H);T(0,1);c.fillStyle='#0c0e18';
+  D.bl.forEach(b=>{if(!inV(b.b)||b.s*k0<3)return;const p=b.p,dx=sv[0]*b.h,dy=sv[1]*b.h;c.beginPath();
+    c.moveTo(p[0]+dx,p[1]+dy);for(let i=2;i<p.length;i+=2)c.lineTo(p[i]+dx,p[i+1]+dy);c.closePath();
+    for(let i=0;i<p.length;i+=2){const j=(i+2)%p.length;c.moveTo(p[i],p[i+1]);c.lineTo(p[j],p[j+1]);c.lineTo(p[j]+dx,p[j+1]+dy);c.lineTo(p[i]+dx,p[i+1]+dy);c.closePath();}c.fill();});
+  c=keep;I();c.globalAlpha=a*shA;c.drawImage(shd,0,0);T(0,1);
+  c.globalAlpha=a*shA*1.4;D.tr.forEach(t=>{if(Math.abs(t[0])>VR||Math.abs(t[1])>VR||t[2]*k0<.7)return;const h=t[2]*1.6+2;c.drawImage(shadowS,t[0]+sv[0]*h-t[2],t[1]+sv[1]*h-t[2],t[2]*2,t[2]*2);});
+  c.globalAlpha=a;
+  // cars
+  drawCars(a,VR);
+  // trees, then buildings from low to high, so the tall ones overlap what they should
+  I();const dots=new Path2D();D.tr.forEach(t=>{if(Math.abs(t[0])>VR||Math.abs(t[1])>VR)return;const h=t[2]*1.6+2,d=Rm+HH-h;if(d<1)return;const s=K/d,r=t[2]*s;if(r<.35)return;S(t[0],t[1],h);
+    if(r<2.5){dots.moveTo(P[0]+r,P[1]);dots.arc(P[0],P[1],r,0,6.2832);return;}const m=TMIP[t[3]],q=m[r>40?0:r>18?1:r>8?2:3];c.drawImage(q,P[0]-r*1.15,P[1]-r*1.15,r*2.3,r*2.3);});
+  c.fillStyle='#3d5a2b';c.fill(dots);
+  const small={};
+  D.bl.forEach(b=>{if(!inV(b.b))return;const d=Rm+HH-b.h;if(d<2)return;const sz=b.s*K/d;if(sz<1)return;const p=b.p;
+    if(sz<3){const q=small[b.c]||(small[b.c]=new Path2D());for(let i=0;i<p.length;i+=2){S(p[i],p[i+1],b.h);i?q.lineTo(P[0],P[1]):q.moveTo(P[0],P[1]);}q.closePath();return;}
+    {c.fillStyle=rgb(b.w);c.beginPath();for(let i=0;i<p.length;i+=2){const j=(i+2)%p.length;S(p[i],p[i+1],0);c.moveTo(P[0],P[1]);S(p[j],p[j+1],0);c.lineTo(P[0],P[1]);S(p[j],p[j+1],b.h);c.lineTo(P[0],P[1]);S(p[i],p[i+1],b.h);c.lineTo(P[0],P[1]);c.closePath();}c.fill();}
+    c.fillStyle=rgb(b.c);c.beginPath();poly(p,b.h);c.fill();
+    if(sz>18){c.strokeStyle='rgba(255,255,255,.18)';c.lineWidth=1;c.stroke();}
+    if(b.t&&sz>10){S(b.t[0],b.t[1],b.h+1.4);const r=b.t[2]*K/(d-1.4);c.fillStyle='#17181a';c.beginPath();c.arc(P[0],P[1],r,0,6.2832);c.fill();c.fillStyle='rgba(255,255,255,.12)';c.beginPath();c.arc(P[0]-r*.3,P[1]-r*.3,r*.45,0,6.2832);c.fill();}
+    if(b.d&&sz>30){c.fillStyle='#8f9395';const s2=K/(d-1);b.d.forEach(q=>{S(q[0],q[1],b.h+1);const e=q[2]*s2;c.fillRect(P[0]-e/2,P[1]-e/2,e,e);});}});
+  for(const q in small){c.fillStyle=rgb(q.split(',').map(Number));c.fill(small[q]);}
+  c.globalAlpha=1;
+}
+function carPos(q){const D=CITYD;if(q.r!==undefined){const r=D.rd[q.r],L=Math.hypot(r[2]-r[0],r[3]-r[1]),nx=-(r[3]-r[1])/L,ny=(r[2]-r[0])/L;
+    return [r[0]+(r[2]-r[0])*q.t+nx*q.o,r[1]+(r[3]-r[1])*q.t+ny*q.o,Math.atan2(r[3]-r[1],r[2]-r[0])+(q.v<0?Math.PI:0)];}
+  const g=D.rg[q.g],rr=g[2]+q.o;return [g[0]+Math.cos(q.t)*rr,g[1]+Math.sin(q.t)*rr,q.t+Math.PI/2];}
+function drawCars(a,VR){
+  const s=k(1.4);if(4.4*s<3)return;c.globalAlpha=a;
+  CITYD.cars.forEach(q=>{const p=carPos(q);if(Math.abs(p[0])>VR||Math.abs(p[1])>VR)return;const ty=q.ty,L=ty[1],w=ty[2];
+    S(p[0]+sv[0]*.8,p[1]+sv[1]*.8,0);const s0=k(0),an=p[2],cs=Math.cos(an),sn=Math.sin(an),A=cs*ca-sn*sa,B=cs*sa+sn*ca;
+    c.setTransform(s0*A,s0*B,-s0*B,s0*A,P[0],P[1]);c.fillStyle='rgba(12,14,24,'+(shA*.9).toFixed(3)+')';c.fillRect(-L/2,-w/2,L,w);
+    S(p[0],p[1],ty[3]===2?3.2:1.45);const s1=k(ty[3]===2?3.2:1.45);c.setTransform(s1*A,s1*B,-s1*B,s1*A,P[0],P[1]);
+    c.fillStyle=ty[0];c.beginPath();c.roundRect(-L/2,-w/2,L,w,Math.min(.5,w*.3));c.fill();
+    if(L*s1>6){if(ty[3]===1){c.fillStyle='#e8c22a';c.fillRect(-L*.35,-w*.48,L*.7,w*.96);c.fillStyle='#202428';c.fillRect(L*.2,-w*.4,L*.18,w*.8);}
+      else{c.fillStyle='#1d2329';c.fillRect(L*.12,-w*.42,L*.17,w*.84);c.fillRect(-L*.36,-w*.4,L*.12,w*.8);c.fillStyle='rgba(255,255,255,.16)';c.fillRect(-L*.22,-w*.36,L*.32,w*.72);}}});
+  I();c.globalAlpha=1;
+}
+// a person seen from above: shadow, legs, arms, shoulders and head, each at its own height so they lean like in a photo
+function personShadow(o,x,y){const d=Math.hypot(sv[0],sv[1]),L=Math.max(.35,Math.min(4.5,1.7*d)),an=Math.atan2(sv[1],sv[0]),w=o.s;
+  T(0,1);c.save();c.translate(x,y);c.rotate(an);c.fillStyle='rgba(12,14,24,'+shA.toFixed(3)+')';c.beginPath();
+  c.ellipse(.06,-.08*w,.14,.07,0,0,6.2832);c.ellipse(.06,.08*w,.14,.07,0,0,6.2832);                     // feet
+  if(L>.6){c.moveTo(0,-.13*w);c.lineTo(L*.47,-.12*w);c.lineTo(L*.47,.12*w);c.lineTo(0,.13*w);c.closePath(); // legs
+    c.ellipse(L*.64,0,L*.2,.2*w,0,0,6.2832);c.ellipse(L*.88,0,.11*w+L*.03,.1*w,0,0,6.2832);}                   // body, head
+  else c.ellipse(L*.4,0,L*.5,.24*w,0,0,6.2832);
+  c.fill();c.restore();}
+function person(o,x,y,a,ph,noR){
+  const sc=k(1.45);if(.45*sc<1.5){S(x,y,1.5);c.fillStyle=rgb(o.sh);c.fillRect(P[0]-1,P[1]-1,2,2);return;}
+  const big=.45*sc>40,ang=a+Math.atan2(sa,ca),fx=Math.cos(a),fy=Math.sin(a),lx=-fy,ly=fx,sw=Math.sin(ph)*(o.v?1:0),w=o.s;
+  const E=(px,py,h,ra,rb,col,rot)=>{S(px,py,h);const s=k(h);c.beginPath();c.ellipse(P[0],P[1],ra*s,rb*s,rot===undefined?ang:rot,0,6.2832);c.fillStyle=col;c.fill();};
+  const limb=(x0,y0,h0,x1,y1,h1,wd,col)=>{S(x0,y0,h0);const ax=P[0],ay=P[1],s0=k(h0);S(x1,y1,h1);c.beginPath();c.moveTo(ax,ay);c.lineTo(P[0],P[1]);c.lineWidth=wd*(s0+k(h1))/2;c.lineCap='round';c.strokeStyle=col;c.stroke();};
+  // shoes, peeping out in front (they lean least, being lowest)
+  [-1,1].forEach(sd=>E(x+fx*(.1+.2*sw*sd)+lx*.1*sd,y+fy*(.1+.2*sw*sd)+ly*.1*sd,.05,.13,.055,'#1b1c1f'));
+  // arms hanging by the sides, swinging a little
+  const sl=rgb(shade(o.sh,.8));[-1,1].forEach(sd=>{if(noR&&sd===1)return;const g=-sw*sd*.14;limb(x+lx*.22*sd*w,y+ly*.22*sd*w,1.38,x+lx*.25*sd*w+fx*g,y+ly*.25*sd*w+fy*g,.95,.09,sl);
+    S(x+lx*.25*sd*w+fx*g*1.3,y+ly*.25*sd*w+fy*g*1.3,.82);const s=k(.82);c.beginPath();c.arc(P[0],P[1],.045*s,0,6.2832);c.fillStyle='#8a5a3c';c.fill();});
+  // shoulders: a rounded bar across the body, shaded as if lit from above
+  limb(x-lx*.17*w,y-ly*.17*w,1.42,x+lx*.17*w,y+ly*.17*w,1.42,.24*w,rgb(o.sh));
+  S(x,y,1.42);const s1=k(1.42);
+  {const g=c.createRadialGradient(P[0]-.05*s1,P[1]-.06*s1,0,P[0],P[1],.3*s1*w);g.addColorStop(0,'rgba(255,255,255,.16)');g.addColorStop(.55,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(0,0,0,.4)');c.strokeStyle=g;c.stroke();}
+  if(o.dp){limb(x-lx*.15*w-fx*.02,y-ly*.15*w-fy*.02,1.46,x+lx*.15*w-fx*.02,y+ly*.15*w-fy*.02,1.46,.13*w,rgb(o.dp,.92));}
+  // head and hair
+  const hx=x+fx*.03,hy=y+fy*.03;E(hx,hy,1.66,.105*w,.09*w,rgb(o.hr));
+  S(hx,hy,1.66);const s=k(1.66);
+  if(big){c.save();c.clip();c.strokeStyle=rgb(shade(o.hr,2.2),.3);c.lineWidth=Math.max(.6,.004*s);const R=rng(7);for(let i=0;i<70;i++){const a2=R()*6.28,r0=R()*.03*s;c.beginPath();c.moveTo(P[0]+Math.cos(a2)*r0,P[1]+Math.sin(a2)*r0);c.lineTo(P[0]+Math.cos(a2)*.11*s,P[1]+Math.sin(a2)*.11*s);c.stroke();}c.restore();}
+  const g=c.createRadialGradient(P[0]-.03*s,P[1]-.03*s,0,P[0],P[1],.11*s*w);g.addColorStop(0,'rgba(255,255,255,.16)');g.addColorStop(.5,'rgba(255,255,255,0)');g.addColorStop(1,'rgba(0,0,0,.3)');c.fillStyle=g;c.beginPath();c.arc(P[0],P[1],.1*s*w,0,6.2832);c.fill();
+}
+function stepPeople(dt){const D=CITYD;D.ppl.forEach(p=>{p.ph+=dt*6*(p.v?1:0);
+  if(p.ring){p.ang+=p.w*dt;p.x=CP[0]+Math.cos(p.ang)*p.ring;p.y=CP[1]+Math.sin(p.ang)*p.ring;p.a=p.ang+(p.w>0?Math.PI/2:-Math.PI/2);return;}
+  if(!p.v)return;p.a+=(hs(p.x*3|0,p.y*3|0)-.5)*dt*.8;const nx=p.x+Math.cos(p.a)*p.v*dt,ny=p.y+Math.sin(p.a)*p.v*dt;
+  if(far(nx,ny)>115||Math.hypot(nx+.8,ny)<3.2)p.a+=Math.PI*(.6+.4*hs(p.x|0,p.y|0));else{p.x=nx;p.y=ny;}});
+  D.cars.forEach(q=>{q.t+=q.v*dt;if(q.r!==undefined){if(q.t>1)q.t-=1;if(q.t<0)q.t+=1;}});}
+function drawPeople(a,shadows){
+  const VR=Math.hypot(W,H)/2/k(0)+3,list=CITYD.ppl;c.globalAlpha=a;
+  if(shadows){list.forEach(p=>{if(Math.abs(p.x)<VR&&Math.abs(p.y)<VR)personShadow(p,p.x,p.y);});FRIENDS.forEach(p=>personShadow(p,p.x,p.y));personShadow(YOU,YOU.x,YOU.y);
+    // the shadow of your arm and hand, far below and soft
+    T(0,.01);c.fillStyle='rgba(12,14,24,'+(shA*.8).toFixed(3)+')';c.save();c.translate(sv[0]*HH*100,sv[1]*HH*100);c.beginPath();c.roundRect(-60,-4,62,8,4);c.ellipse(4,0,10,5,0,0,6.2832);c.fill();c.restore();I();}
+  else{list.forEach(p=>{if(Math.abs(p.x)<VR&&Math.abs(p.y)<VR)person(p,p.x,p.y,p.a,p.ph);});FRIENDS.forEach(p=>person(p,p.x,p.y,p.a,0));person(YOU,YOU.x,YOU.y,YOU.a,0,true);}
+  c.globalAlpha=1;
+}
+
+/* your arm and hand, in centimetres: wrist to fingertips along +x, palm down, thumb to the north */
+function capsule(pts,wid){
+  const L=[],Rr=[];for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)],dx=q[0]-o[0],dy=q[1]-o[1],n=Math.hypot(dx,dy)||1,nx=-dy/n,ny=dx/n,w=wid[i]/2;L.push([p[0]+nx*w,p[1]+ny*w]);Rr.push([p[0]-nx*w,p[1]-ny*w]);}
+  c.beginPath();c.moveTo(L[0][0],L[0][1]);for(let i=1;i<L.length;i++)c.lineTo(L[i][0],L[i][1]);
+  const e=pts[pts.length-1],q=pts[pts.length-2],an=Math.atan2(e[1]-q[1],e[0]-q[0]);c.arc(e[0],e[1],wid[wid.length-1]/2,an+Math.PI/2,an-Math.PI/2,true);
+  for(let i=Rr.length-1;i>=0;i--)c.lineTo(Rr[i][0],Rr[i][1]);
+  const s=pts[0],s1=pts[1],a0=Math.atan2(s1[1]-s[1],s1[0]-s[0]);c.arc(s[0],s[1],wid[0]/2,a0-Math.PI/2,a0+Math.PI/2,true);c.closePath();}
+const SKIN=hex('#8a5a3c');
+function roundShade(p0,p1,w,dark,light){ // shade a limb across its width so it reads as round
+  const mx=(p0[0]+p1[0])/2,my=(p0[1]+p1[1])/2,dx=p1[0]-p0[0],dy=p1[1]-p0[1],n=Math.hypot(dx,dy)||1,nx=-dy/n*w/2,ny=dx/n*w/2,g=c.createLinearGradient(mx-nx,my-ny,mx+nx,my+ny);
+  g.addColorStop(0,dark);g.addColorStop(.28,'rgba(0,0,0,0)');g.addColorStop(.42,light);g.addColorStop(.62,'rgba(0,0,0,0)');g.addColorStop(1,dark);c.fillStyle=g;c.fill();}
+const FING=[[-2.9,-.07,7.9,2.0],[-.97,-.01,8.8,2.05],[.98,.04,8.3,1.96],[2.85,.11,6.6,1.74]];
+function finger(by,an,len,w,nail){
+  const bx=3.3,ux=Math.cos(an),uy=Math.sin(an),T0=[0,.12,.44,.5,.72,.77,1],WW=[1,1,.95,1,.9,.93,.84],pts=T0.map(t=>[bx+ux*len*t,by+uy*len*t]),wid=WW.map(v=>v*w);
+  capsule(pts,wid);c.fillStyle=rgb(SKIN);c.fill();roundShade(pts[0],pts[6],w*1.02,'rgba(48,22,10,.55)','rgba(255,215,185,.12)');
+  c.save();c.translate(bx,by);c.rotate(an);c.lineCap='round';
+  [[.47,4,.13],[.745,3,.1]].forEach(([t,n,o])=>{for(let i=0;i<n;i++){const xx=len*t+(i-n/2)*.09;c.beginPath();c.moveTo(xx-.08,-w*.3);c.quadraticCurveTo(xx+.12,0,xx-.08,w*.3);c.lineWidth=.035;c.strokeStyle='rgba(45,22,10,'+(.25+o).toFixed(2)+')';c.stroke();}
+    const g=c.createRadialGradient(len*t,0,0,len*t,0,w*.5);g.addColorStop(0,'rgba(255,220,195,.10)');g.addColorStop(1,'rgba(255,220,195,0)');c.fillStyle=g;c.fillRect(len*t-w,-w,2*w,2*w);});
+  if(nail){const nl=len*.22,nw=w*.62,x0=len*.8;c.beginPath();c.roundRect(x0,-nw/2,nl+w*.3,nw,[nw*.15,nw*.5,nw*.5,nw*.15]);c.fillStyle='#c79b86';c.fill();
+    const g=c.createLinearGradient(x0,0,x0+nl+w*.3,0);g.addColorStop(0,'rgba(240,215,200,.5)');g.addColorStop(.18,'rgba(0,0,0,0)');g.addColorStop(.82,'rgba(0,0,0,0)');g.addColorStop(.86,'rgba(245,235,222,.95)');g.addColorStop(1,'rgba(245,235,222,.95)');c.fillStyle=g;c.fill();
+    c.strokeStyle='rgba(70,35,20,.45)';c.lineWidth=.04;c.stroke();c.fillStyle='rgba(255,255,255,.22)';c.fillRect(x0+nl*.25,-nw*.22,nl*.6,nw*.12);}
+  c.restore();}
+function drawHand(a,night){
+  if(a<.01||Rm>60)return;
+  const t=hx;t.setTransform(1,0,0,1,0,0);t.clearRect(0,0,W,H);const keep=c;c=t;T(HH,.01);
+  // sleeve and forearm
+  capsule([[-80,0],[-62,0],[-36,0]],[13,12,10.4]);c.fillStyle=rgb(YOU.sh);c.fill();roundShade([-80,0],[-36,0],12,'rgba(0,0,0,.45)','rgba(255,255,255,.08)');
+  c.strokeStyle='rgba(0,0,0,.22)';c.lineWidth=.25;for(let i=0;i<5;i++){c.beginPath();c.moveTo(-60+i*5,-5);c.quadraticCurveTo(-58+i*5,0,-61+i*5,5);c.stroke();}
+  capsule([[-37,0],[-20,0],[-5,0]],[7.8,7.2,6.2]);c.fillStyle=rgb(SKIN);c.fill();roundShade([-37,0],[-5,0],7.6,'rgba(45,20,8,.55)','rgba(255,215,185,.12)');
+  // thumb, the back of the hand, then the fingers
+  capsule([[-3.6,-2.2],[-1.2,-4.5],[1.3,-6.4],[2.8,-7.3]],[3.1,2.6,2.25,1.95]);c.fillStyle=rgb(shade(SKIN,.94));c.fill();roundShade([-3.6,-2.2],[2.8,-7.3],2.6,'rgba(45,20,8,.55)','rgba(255,215,185,.1)');
+  c.save();c.translate(2.8,-7.3);c.rotate(-.58);c.beginPath();c.roundRect(-1.5,-.62,1.6,1.24,.6);c.fillStyle='#c79b86';c.fill();c.strokeStyle='rgba(70,35,20,.45)';c.lineWidth=.04;c.stroke();c.restore();
+  const back=new Path2D();back.moveTo(-6.2,-3.1);back.quadraticCurveTo(-1,-4.7,3.7,-3.95);back.lineTo(4.9,-1.8);back.lineTo(5,.2);back.lineTo(4.6,2.3);back.lineTo(3.8,3.85);back.quadraticCurveTo(-1,4.15,-6.2,3.1);back.closePath();
+  c.fillStyle=rgb(SKIN);c.fill(back);
+  {const g=c.createRadialGradient(-.5,-.4,0,-.5,0,6.6);g.addColorStop(0,'rgba(255,220,190,.12)');g.addColorStop(.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(40,18,8,.42)');c.fillStyle=g;c.fill(back);}
+  c.lineCap='round';FING.forEach((f,i)=>{c.beginPath();c.moveTo(-4.6,f[0]*.45);c.quadraticCurveTo(0,f[0]*.75,3.9,f[0]);c.lineWidth=.45;c.strokeStyle='rgba(255,224,198,.10)';c.stroke();
+    c.save();c.translate(0,.32);c.lineWidth=.22;c.strokeStyle='rgba(50,24,10,.13)';c.stroke();c.restore();});
+  c.beginPath();c.moveTo(-6,1.3);c.bezierCurveTo(-3,1.6,-.6,.4,1.4,1.4);c.bezierCurveTo(2.4,1.9,3,2.6,3.6,3.2);c.moveTo(-1.6,1.1);c.quadraticCurveTo(-.8,-1.4,1.2,-2.4);
+  c.lineWidth=.32;c.strokeStyle='rgba(70,62,92,.2)';c.stroke();
+  [3,2,1,0].forEach(i=>{const f=FING[i];finger(f[0],f[1],f[2],f[3],true);});
+  FING.forEach(f=>{const g=c.createRadialGradient(4.2,f[0],0,4.2,f[0],1.1);g.addColorStop(0,'rgba(255,220,195,.16)');g.addColorStop(1,'rgba(255,220,195,0)');c.fillStyle=g;c.fillRect(3,f[0]-1.2,2.4,2.4);});
+  // skin texture and a scatter of fine hairs, only where there is skin
+  c.globalCompositeOperation='source-atop';const pat=c.createPattern(SKT,'repeat');pat.setTransform(new DOMMatrix().scaleSelf(2/512));c.globalAlpha=.6;c.fillStyle=pat;c.fillRect(-90,-20,110,40);c.globalAlpha=1;
+  const R=rng(3);c.lineWidth=.025;c.strokeStyle='rgba(28,16,10,.55)';c.beginPath();for(let i=0;i<260;i++){const x0=-36+R()*36,y0=(R()-.5)*(x0<-5?6.4:7),l=.3+R()*.5,an=(R()-.5)*.6;c.moveTo(x0,y0);c.lineTo(x0+Math.cos(an)*l,y0+Math.sin(an)*l);}c.stroke();
+  if(night>.01){c.globalAlpha=night*.22;c.fillStyle='#1a1420';c.fillRect(-90,-20,110,40);c.globalAlpha=night*.2;c.fillStyle='#ff9a40';c.fillRect(-90,-20,110,40);c.globalAlpha=1;}
+  c.globalCompositeOperation='source-over';
+  c=keep;I();c.globalAlpha=a;c.drawImage(hnd,0,0);c.globalAlpha=1;
+}
+
+/* ---------- the microscopes ---------- */
+const RBC=(function(){const R=rng(91),l=[];for(let i=0;i<1700;i++){const t=R();l.push({x:(R()*2-1)*1150,y:(R()*2-1)*(LR-3.5),r:R()*6.28,ty:t<.6?0:t<.9?1:2,s:(R()-.5)*1.5});}return l;})();
+function stepRBC(dt){RBC.forEach(q=>{q.x+=330*(1-(q.y/LR)**2)*dt;if(q.x>1150)q.x-=2300;q.r+=q.s*dt;const dx=q.x-WBC_C[0],dy=q.y-WBC_C[1],d=Math.hypot(dx,dy);if(d<10){q.x=WBC_C[0]+dx/d*10;q.y=Math.max(-LR+3.5,Math.min(LR-3.5,WBC_C[1]+dy/d*10));}});}
+function drawRBC(a){
+  T(HH,1e-6);c.globalAlpha=a;c.fillStyle='#efdcc0';c.fillRect(-1300,-LR,2600,2*LR);
+  const s=k(HH)*1e-6;if(9*s<1){c.globalAlpha=1;return;}const m=10*s;
+  RBC.forEach(q=>{const px=cx+(q.x*ca-q.y*sa)*s,py=cy+(q.x*sa+q.y*ca)*s;if(px<-m||py<-m||px>W+m||py>H+m)return;const an=q.r+Math.atan2(sa,ca),C=Math.cos(an)*s,Sn=Math.sin(an)*s;
+    c.setTransform(C,Sn,-Sn,C,px,py);c.drawImage(RBCS[q.ty],-5,-5,10,10);});
+  I();c.globalAlpha=1;
+}
+function drawTEM(a){
+  fill('#c6c5bd',a);I();c.save();c.globalAlpha=a*.3;c.globalCompositeOperation='multiply';c.fillStyle=c.createPattern(grain,'repeat');c.fillRect(0,0,W,H);c.restore();
+  const s=k(HH)*1e-9,VR=Math.hypot(W,H)/2/s+20,inV=b=>b[2]>-VR&&b[0]<VR&&b[3]>-VR&&b[1]<VR,bs=13*s;
+  T(HH,1e-9);c.globalAlpha=a;c.lineCap=c.lineJoin='round';c.strokeStyle='rgba(45,45,42,.75)';c.lineWidth=Math.max(2.2,1.2/s);
+  FIB.forEach(f=>{if(!inV(f.b))return;const b=f.beads;c.beginPath();if(f.main)f.pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));else for(let i=0;i<b.length;i+=2)i?c.lineTo(b[i],b[i+1]):c.moveTo(b[i],b[i+1]);c.stroke();});
+  I();const dots=bs<3?new Path2D():null;
+  FIB.forEach(f=>{if(!inV(f.b))return;const b=f.beads;for(let i=0;i<b.length;i+=2){if(Math.abs(b[i])>VR||Math.abs(b[i+1])>VR)continue;S(b[i]*1e-9,b[i+1]*1e-9,HH);
+    if(dots){dots.moveTo(P[0]+bs/2,P[1]);dots.arc(P[0],P[1],bs/2,0,6.2832);}else c.drawImage(BEAD,P[0]-bs/2,P[1]-bs/2,bs,bs);}});
+  if(dots){c.fillStyle='rgba(35,35,33,.85)';c.fill(dots);}
+  c.globalAlpha=1;
+}
+// an atomic force microscope image is a map of height: each pixel here is worked out from the strand's shape, then coloured
+const afmC=document.createElement('canvas'),afmX=afmC.getContext('2d');let afmImg=null;
+const AFMLUT=(()=>{const l=new Uint8Array(256*3);for(let i=0;i<256;i++){const q=AFMC(i/255);l[i*3]=q[0];l[i*3+1]=q[1];l[i*3+2]=q[2];}return l;})();
+function drawAFM(a){
+  const pw=Math.round(Math.min(380,W/2.5)),ph=Math.max(1,Math.round(pw*H/W));
+  if(afmC.width!==pw||afmC.height!==ph||!afmImg){afmC.width=pw;afmC.height=ph;afmImg=afmX.createImageData(pw,ph);}
+  const d=afmImg.data,s=k(HH)*1e-9*pw/W,ox=cx*pw/W,oy=cy*pw/W,VR=Math.hypot(pw,ph)/2/s+9,hel=ss(-8.0,-8.4,Zc),at=ss(-8.45,-8.8,Zc);
+  const bx=[],by=[];FIB.forEach(f=>{if(f.b[2]<-VR||f.b[0]>VR||f.b[3]<-VR||f.b[1]>VR)return;const b=f.beads;for(let i=0;i<b.length;i+=2)if(Math.abs(b[i])<VR&&Math.abs(b[i+1])<VR){bx.push(b[i]);by.push(b[i+1]*(f.main?0:1));}});
+  const nb=bx.length,TP=6.2832/3.4;
+  for(let py=0;py<ph;py++)for(let px=0;px<pw;px++){
+    const dx=px+.5-ox,dy=py+.5-oy,x=(dx*ca+dy*sa)/s,y=(-dx*sa+dy*ca)/s;
+    let h=.16*vn(x*1.7+40,y*1.7)+.08*vn(x*5.3,y*5.3+9);                      // the mica it lies on
+    if(y>-4&&y<4){const p1=x*TP,y1=.95*Math.sin(p1),y2=.95*Math.sin(p1+2.2),c1=Math.cos(p1),c2=Math.cos(p1+2.2);
+      const env=(1.55+.22*Math.max(c1,c2))*Math.exp(-y*y/1.25);           // seen coarsely: a tube with a bump every turn
+      let fine=Math.max((1.3+.5*c1)*Math.exp(-(y-y1)*(y-y1)/.08),(1.3+.5*c2)*Math.exp(-(y-y2)*(y-y2)/.08));
+      if((y-y1)*(y-y2)<0){const r=Math.cos(x*18.48);fine=Math.max(fine,.75+.3*r*r);} // the rungs: one base pair every 0.34 nm
+      if(at>0&&x>-3.3&&x<3.3){const j0=Math.round(x/.155);for(let j=j0-1;j<=j0+1;j++){const ax=j*.155,ay=.95*Math.sin(ax*TP),r2=(x-ax)*(x-ax)+(y-ay)*(y-ay);if(r2<.05)fine+=at*(j?.4:.7)*Math.exp(-r2/.0042);}}
+      h=Math.max(h,env*(1-hel)+fine*hel);}
+    for(let i=0;i<nb;i++){const ex=x-bx[i],ey=y-by[i],r2=ex*ex+ey*ey;if(r2<90)h=Math.max(h,2.7*Math.exp(-r2/15));}
+    const t=Math.max(0,Math.min(255,h/3*255|0)),o=(py*pw+px)*4;d[o]=AFMLUT[t*3];d[o+1]=AFMLUT[t*3+1];d[o+2]=AFMLUT[t*3+2];d[o+3]=255;}
+  afmX.putImageData(afmImg,0,0);I();c.globalAlpha=a;c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(afmC,0,0,W,H);c.globalAlpha=1;
+}
+
+/* ---------- the frame ---------- */
+const SRC=[[4.65,'Satellite photo'],[2.4,'Seen from a drone'],[-.95,'Seen from a drone, right above you'],[-2.45,'Dermatoscope'],[-5.0,'Light microscope, stained'],[-6.3,'Fluorescence microscope'],[-7.95,'Electron microscope'],[-8.9,'Atomic force microscope'],[-99,'']];
+function source(Z){if(Z>4.65)return '';for(const q of SRC)if(Z>q[0])return q[1];return '';}
+function scaleBar(Z){
+  const h=Z<.6?HH:0,mpp=1/k(h),target=Math.min(W,H)*.18*mpp,e=Math.pow(10,Math.floor(Math.log10(target))),m=target/e,L=(m>=5?5:m>=2?2:1)*e,px=L/mpp;
+  const lab=L>=1000?L/1000+' km':L>=1?L+' m':L>=1e-2?+(L*100).toFixed(0)+' cm':L>=1e-3?+(L*1e3).toFixed(0)+' mm':L>=1e-6?+(L*1e6).toFixed(0)+' µm':+(L*1e9).toFixed(1)+' nm';
+  const x1=W-28*DPR,y=H-(innerWidth<641?118:76)*DPR;I();c.globalAlpha=.9;c.fillStyle='rgba(0,0,0,.45)';c.fillRect(x1-px-4*DPR,y-20*DPR,px+8*DPR,28*DPR);
+  c.fillStyle='#fff';c.fillRect(x1-px,y,px,3*DPR);c.font=(10*DPR)+'px ui-monospace,Menlo,monospace';c.textAlign='right';c.fillText(lab,x1,y-6*DPR);c.globalAlpha=1;
+}
+function resize(w,h,dpr){DPR=Math.min(dpr,2,Math.sqrt(4.2e6/(w*h)));W=Math.round(w*DPR);H=Math.round(h*DPR);[cvs,gnd,hnd,shd].forEach(e=>{e.width=W;e.height=H;});}
+// in a quiet moment after start, paint the maps and microscope slides one at a time
+function prepare(){const jobs=[()=>{L70=paintMap(2048,70,false);},()=>{L70N=paintMap(1024,70,true);},paintL12,()=>paintL12N(),paintSkin1,paintSkin2,paintTissue,paintWBC,paintFL];
+  const next=()=>{const j=jobs.shift();if(!j){ready=1;return;}j();setTimeout(next,30);};setTimeout(next,400);}
+function draw(Z,rm,th,nt,sun,dt,shift,op){
+  if(op<.003){if(on){cvs.style.opacity=0;on=false;}return;}
+  if(!on){on=true;}cvs.style.opacity=op.toFixed(3);
+  Zc=Z;Rm=rm;K=H/TANV;cx=W/2-shift*DPR;cy=H/2;night=nt;clock+=dt;
+  const up=Math.atan2(-Math.cos(th),Math.sin(th));ca=Math.cos(-up);sa=Math.sin(-up);
+  // sunlight: shadows fall away from the sun, longer when it is low
+  const alt=Math.max(.12,sun.y);sv=[-sun.x/alt,-sun.z/alt];const sl=Math.hypot(sv[0],sv[1]);if(sl>3){sv[0]*=3/sl;sv[1]*=3/sl;}
+  shA=.42*ss(0,.12,sun.y)+.14*nt;if(sun.y<0)sv=[.12,.18];
+  c=main;I();c.globalCompositeOperation='source-over';c.globalAlpha=1;c.filter='none';
+  // the city, the street and you
+  if(Z>-1.65){
+    if(Z<3)stepPeople(dt);
+    const blur=canFilter&&Z<1.25?Math.min(26,30*DPR*Math.pow(HH/(Rm+HH),1.3))*ss(1.25,.55,Z):0;
+    if(blur>.5){fill('#857e70',1);c=gx;I();}
+    fill('#857e70',1);
+    if(Z>3.5)raster(L70,7e4,0,1,1);
+    if(Z>2.6)raster(L12,1.2e4,0,1,ss(4.75,4.3,Z));
+    if(Z<3.25)drawCity(ss(3.25,2.95,Z));
+    if(Z<2.6)drawPeople(ss(2.6,2.2,Z),true);
+    if(blur>.5){c=main;I();c.filter='blur('+blur.toFixed(1)+'px)';c.drawImage(gnd,0,0);c.filter='none';}
+    if(Z<2.6)drawPeople(ss(2.6,2.2,Z),false);
+    if(Z>2.6)fill('#b4c0d0',.16*ss(2.6,4.6,Z)); // haze, from high up
+    const gN=nt*ss(-1.35,-.8,Z);
+    if(gN>.01){I();c.globalCompositeOperation='multiply';c.fillStyle=rgb(mix([255,255,255],[30,40,72],gN));c.fillRect(0,0,W,H);
+      c.globalCompositeOperation='lighter';
+      if(Z>3.5)raster(L70N,7e4,0,1,gN);if(Z>2.6)raster(L12N,1.2e4,0,1,gN*ss(4.75,4.3,Z));
+      if(Z<3.25){const a=gN*ss(3.25,2.95,Z),k0=k(0),VR=Math.hypot(W,H)/2/k0+20,r=13*k0;I();
+        if(r>1.5){c.globalAlpha=a*.55;CITYD.lp.forEach(p=>{if(Math.abs(p[0])>VR||Math.abs(p[1])>VR)return;S(p[0],p[1],0);c.drawImage(lampS,P[0]-r,P[1]-r,2*r,2*r);});}
+        if(k0*4>2){CITYD.cars.forEach(q=>{const p=carPos(q);if(Math.abs(p[0])>VR||Math.abs(p[1])>VR)return;const L=q.ty[1]/2,f=[Math.cos(p[2]),Math.sin(p[2])],g=4*k0;
+          c.globalAlpha=a*.8;S(p[0]+f[0]*(L+2),p[1]+f[1]*(L+2),0);c.drawImage(headS,P[0]-g,P[1]-g,2*g,2*g);c.globalAlpha=a*.6;S(p[0]-f[0]*L,p[1]-f[1]*L,0);c.drawImage(tailS,P[0]-g*.4,P[1]-g*.4,.8*g,.8*g);});}
+        c.globalAlpha=1;}
+      c.globalCompositeOperation='source-over';}
+    if(Z<.9)drawHand(1,nt*ss(-1.35,-.8,Z));
+  }
+  // under the skin, and on down
+  if(Z<-.85&&Z>-3.1){raster(SK1,.04,HH,1e-3,ss(-.85,-1.35,Z));raster(SK2,.004,HH,1e-6,ss(-1.85,-2.3,Z));}
+  if(Z<-2.45&&Z>-5.4){const a=ss(-2.45,-2.9,Z);fill('#ecc9c6',a*ss(-2.9,-3.1,Z));raster(TS,2.5e-3,HH,1e-6,a);
+    if(Z<-2.85){if(Z>-5.3)stepRBC(dt);drawRBC(ss(-2.85,-3.25,Z));}
+    if(Z<-3.15)raster(WBC,14e-6,HH,1e-6,ss(-3.15,-3.55,Z));}
+  if(Z<-5&&Z>-6.6){const a=ss(-5,-5.4,Z);fill('#000',a);raster(FL,30e-6,HH,1e-6,a);}
+  if(Z<-6.15&&Z>-8.25)drawTEM(ss(-6.15,-6.5,Z));
+  if(Z<-7.75)drawAFM(ss(-7.75,-8.15,Z));
+  // a little grain and vignette, as from any real lens, and a scale bar
+  I();c.globalAlpha=.06;c.globalCompositeOperation='overlay';c.fillStyle=c.createPattern(grain,'repeat');c.save();c.translate(Math.random()*256,Math.random()*256);c.fillRect(-256,-256,W+256,H+256);c.restore();
+  c.globalCompositeOperation='source-over';c.globalAlpha=1;
+  const vg=c.createRadialGradient(W/2,H/2,Math.min(W,H)*.35,W/2,H/2,Math.hypot(W,H)*.6);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.42)');c.fillStyle=vg;c.fillRect(0,0,W,H);
+  scaleBar(Z);
+}
+// where a point of the painted world lands on screen, in CSS pixels (null when the pictures are hidden)
+function proj(p){if(!on||cvs.style.opacity<.3)return null;S(p[0],p[1],p[2]);return [P[0]/DPR,P[1]/DPR];}
+return {draw,resize,prepare,proj,source,count:CITYD.bl.length};
+})();
+INFO.city.facts[5]=['Buildings drawn','About '+(Math.round(P2.count/100)*100).toLocaleString('en-GB')];
+
 
 /* the city on the globe (orrery side): lights at night, a label, and the frame that makes "up" point up */
 const cityN=new THREE.Vector3(),cityQ=new THREE.Quaternion(),cityW=new THREE.Vector3(),sunL=new THREE.Vector3();
@@ -975,7 +1376,7 @@ function showInfo(o,Zt,ph){
   [...nav.children].forEach(n=>n.classList&&n.classList.toggle('on',n.dataset.id===o.id));fill(o);
 }
 function closeSheet(){if(cam.focus)focusOn(null);else{document.body.classList.remove('open');cam.gshift=0;[...nav.children].forEach(n=>n.classList&&n.classList.remove('on'));}}
-function resize(){const w=innerWidth,h=innerHeight;renderer.setSize(w,h,false);camera.aspect=w/h;ptScale=h*renderer.getPixelRatio()/2;glowMats.forEach(m=>m.uniforms.scale.value=ptScale);if(document.body.classList.contains('open'))cam.gshift=w>640?200:0;}
+function resize(){const w=innerWidth,h=innerHeight;P2.resize(w,h,devicePixelRatio||1);renderer.setSize(w,h,false);camera.aspect=w/h;ptScale=h*renderer.getPixelRatio()/2;glowMats.forEach(m=>m.uniforms.scale.value=ptScale);if(document.body.classList.contains('open'))cam.gshift=w>640?200:0;}
 addEventListener('resize',resize);
 
 /* ---------- UI ---------- */
@@ -993,7 +1394,7 @@ NAV.forEach(v=>{
   bt.onclick=()=>{if(v[2])showInfo(v[2],v[3],v[3]>9?.85:0);else{focusOn(null);goTo(v[3]);}};scaleNav.appendChild(bt);});
 function navLevel(Z){let best=0,bd=1e9;NAV.forEach((v,i)=>{let d=Math.abs(Z-v[3]);d=Math.min(d,P_LOOP-d);if(d<bd){bd=d;best=i;}});return best;}
 function label(text,sub,p,lo,hi,isLife){const el=document.createElement('div');el.className='lab';el.textContent=text;if(sub){const s=document.createElement('small');s.textContent=sub;el.appendChild(s);}
-  document.getElementById('labs').appendChild(el);labels.push({el,p,lo:Math.min(lo,hi),hi:Math.max(lo,hi),life:!!isLife});}
+  document.getElementById('labs').appendChild(el);labels.push({el,p,lo:Math.min(lo,hi),hi:Math.max(lo,hi),life:isLife||0});}
 scene.updateMatrixWorld(true);cosmos.localToWorld(galC.set(0,0,0));
 label('Solar System','You are here',new THREE.Vector3(),4.6,6.3);
 label('Galactic centre','',galC,4.9,6.0);
@@ -1007,17 +1408,21 @@ bubbles.slice(1).map((b,i)=>[b,i]).sort((a,b)=>b[0][3]-a[0][3]).slice(0,3).forEa
 label('Proton','Every universe fits inside',galC,10.75,11.4);
 label('Carbon nucleus','6 protons · 6 neutrons',galC,11.5,12.1);
 label('Carbon atom','The same one, in your DNA',galC,12.25,13.1);
+label('Electron clouds','Not orbits: where they might be',galC,12.55,13.1);
 // down to Earth (these follow the planet as it moves and spins)
 label(CITY.country,'',cityW,-.85,.1);
-const O=new THREE.Vector3(),G=ground.position;
-label(CITY.name,'About 33 million people',new THREE.Vector3(G.x,G.y,G.z),3.3,5.1,1);
-label('You','1 of 8 billion people',new THREE.Vector3(G.x,G.y+2.05,G.z),-.15,1.9,1);
-label('Blood vessel','Under the skin of your hand',new THREE.Vector3(0,RV*1.6,0),-2.6,-3.4,1);
-label('White blood cell','12 micrometres',new THREE.Vector3(0,RW*1.2,0),-4.2,-5,1);
-label('Chromosome','One of your 46',new THREE.Vector3(0,1e-6,0),-5.55,-6.45,1);
-label('Chromatin','DNA, coiled and coiled again',new THREE.Vector3(0,2e-7,0),-6.6,-7.4,1);
-label('DNA','3 billion letters long',new THREE.Vector3(0,1.3e-9,0),-8.2,-8.85,1);
-label('Carbon atom','In your DNA',O,-9,-9.245,1);
+const O=new THREE.Vector3();
+label(CITY.name,'About 33 million people',[0,0,0],3.4,5,2);
+label('Connaught Place','Where you are standing',[-35,22,0],2,3.4,2);
+label('You','1 of 8 billion people',[-.8,.02,1.8],-.2,1.9,2);
+label('Blood vessel','Under the skin of your hand',[-120e-6,-50e-6,1.38],-2.65,-3.4,2);
+label('Red blood cells','No nucleus, no DNA',[-70e-6,20e-6,1.38],-3.15,-3.9,2);
+label('White blood cell','Its nucleus holds your DNA',[1.5e-6,-6.3e-6,1.38],-3.7,-4.9,2);
+label('Chromosome 1','The longest of your 46',[-3.5e-6,-.5e-6,1.38],-5.35,-6.1,2);
+label('Chromatin','DNA wound on protein spools',[0,-150e-9,1.38],-6.55,-7.3,2);
+label('Nucleosome','One spool, 11 nm',[32e-9,-14e-9,1.38],-7.35,-7.9,2);
+label('DNA','The double helix',[-2.2e-9,-1.6e-9,1.38],-8.2,-8.7,2);
+label('Carbon atom','In your DNA',O,-8.9,-9.245,1);
 const hint=document.createElement('span');hint.className='hint';hint.textContent='Drag to orbit · scroll in to dive into Earth and into you, out past the universe · it loops forever';nav.appendChild(hint);
 const $=id=>document.getElementById(id);
 function fill(b){
@@ -1135,7 +1540,7 @@ function fmtLen(m){const LY=9.4607e15;
   const ly=m/LY;if(ly<1e6)return nice(ly)+' light-years';if(ly<1e9)return nice(ly/1e6)+' million light-years';return nice(ly/1e9)+' billion light-years';}
 const QUOTES=[[8.05,8.95,['Look again at that dot. That’s here. That’s home. That’s us.'],'Carl Sagan, Pale Blue Dot, 1994'],
  [16.55,17.2,['We are this small.','And you still worry what others say about you?'],'']];
-let hudTxt='',qIdx=-1;
+let hudTxt='',qIdx=-1,hudSrc='',quoteOp=0;
 function hud(Z,L){
   const t=cam.focus?undefined:trueLog(Z,L);$('hud').style.opacity=cam.focus?0:1;
   if(t!==undefined){const m=t===null?null:Math.pow(10,t),y=m===null?'':m>=1.7?'≈ '+big(m/1.7)+' of you, head to toe':'You are '+big(1.7/m)+' times bigger';
@@ -1143,7 +1548,8 @@ function hud(Z,L){
   let op=0,qi=-1;if(!cam.focus)QUOTES.forEach((q,i)=>{const o=ss(q[0],q[0]+.3,Z)*(1-ss(q[1]-.3,q[1],Z));if(o>op){op=o;qi=i;}});
   if(qi!==qIdx&&qi>=0){qIdx=qi;const q=QUOTES[qi],el=$('quote-in');el.textContent='';q[2].forEach(t=>{const p=document.createElement('p');p.textContent=t;el.appendChild(p);});
     if(q[3]){const sm=document.createElement('small');sm.textContent=q[3];el.appendChild(sm);}}
-  $('quote').style.opacity=op.toFixed(3);
+  $('quote').style.opacity=op.toFixed(3);quoteOp=op;
+  const src=cam.focus?'':P2.source(Z)||((Z<-8.9&&Z>-9.3)||(L>11.5&&L<13.1)?'A model: electron clouds, not orbits':'');if(src!==hudSrc){hudSrc=src;$('hud-src').textContent=src;}
 }
 
 /* ---------- start ---------- */
@@ -1159,17 +1565,16 @@ function frame(now){
   if(simTime>2524608000000||simTime<-5364662400000){simTime=Date.now();}
   place();showDate();if(cam.R<4000)moveBelt();
   BODIES.forEach(b=>{if(b.id==='earth')b.mesh.rotation.y=gmst(simTime);else b.mesh.rotation.y+=dt*b.spin*.4;if(b.clouds)b.clouds.rotation.y+=dt*.004;});
-  ATOM.phase.forEach((p,i)=>ATOM.phase[i]=p+dt*ATOM.el[i][3]);
+  ATOM.t+=dt;if(ATOM.t>.09){ATOM.t=0;ATOM.flash.forEach((_,e)=>{const l=ATOM.idx[e>>1];ATOM.flash[e]=l[Math.random()*l.length|0];});}
   cityFrame();
   const k=reduce?1:1-Math.exp(-dt*3.2);
-  // gliding down to the street and into your hand, the camera eases toward views that show what's there
+  // gliding down, the camera turns to look straight down: a satellite, a drone, then a microscope; past the atom it is free again
   const Z0=Math.log10(cam.R)+ZM;
   if(!cam.focus&&!ptrs.size){const s=Math.min(1,dt*1.4);
-    if(Z0<7.8&&Z0>=4.6)cam.gph=Math.min(cam.gph,steer(cam.gph,.7,s*.8)); // stay above the city while the globe turns beneath you
-    else if(Z0<4.6&&Z0>2.4)cam.gph=steer(cam.gph,CAM_CITY[1],s*.6);
-    else if(Z0<=2.4&&Z0>-.3){cam.gth=steer(cam.gth,CAM_STREET[0],s*.5);cam.gph=steer(cam.gph,CAM_STREET[1],s*.5);}
-    else if(Z0<=-.3&&Z0>-2.8){cam.gth=steer(cam.gth,CAM_HAND[0],s);cam.gph=steer(cam.gph,CAM_HAND[1],s);}}
-  if(!cam.focus&&Z0<7.3)cam.gph=Math.min(cam.gph,1.5); // never orbit underground
+    if(Z0<7.8&&Z0>=6.2)cam.gph=Math.min(cam.gph,steer(cam.gph,.7,s*.8));
+    else if(Z0<6.2&&Z0>-8.75)cam.gph=steer(cam.gph,.02,s*1.2);
+    else if(Z0<=-8.95&&Z0>-9.4)cam.gph=steer(cam.gph,1.05,s*.4);}
+  if(!cam.focus&&Z0<7.3)cam.gph=Math.min(cam.gph,.02+1.48*Math.max(ss(4.9,6,Z0),ss(-8.85,-9.2,Z0)));
   cam.th+=(cam.gth-cam.th)*Math.min(1,k*1.6);
   cam.ph+=(cam.gph-cam.ph)*Math.min(1,k*1.6);cam.R=Math.exp(Math.log(cam.R)+(Math.log(cam.gR)-Math.log(cam.R))*k);cam.shift+=(cam.gshift-cam.shift)*k;
   cam.off.multiplyScalar(1-k);
@@ -1191,10 +1596,9 @@ function frame(now){
   [camera,lifeCam].forEach(c=>{c.aspect=w/h;if(Math.abs(cam.shift)>.5)c.setViewOffset(w,h,cam.shift,0,w,h);else c.clearViewOffset();});
   camera.near=Math.max(Math.min(.1,cam.R*.01),cam.R*.01);camera.far=Math.max(6000,cam.R*80);
   camera.updateProjectionMatrix();
-  // the life scene's camera: same angles, in metres, around the street, you, then your hand
+  // the life scene's camera: same angles, in metres, around the back of your hand
   const fl=cam.focus?0:1-ss(4.95,5.55,Z);
-  lifeTarget.set(ground.position.x,ground.position.y,ground.position.z).lerp(tA.set(ground.position.x,ground.position.y+1.15,ground.position.z),ss(2.6,1.6,Z)).multiplyScalar(ss(-1.6,-.2,Z));
-  lifeCam.position.copy(lifeTarget).addScaledVector(vOff,Rm);lifeCam.up.set(0,1,0);lifeCam.lookAt(lifeTarget);
+  lifeCam.position.copy(vOff).multiplyScalar(Rm);lifeCam.up.set(0,1,0);lifeCam.lookAt(0,0,0);
   lifeCam.near=Rm*.01;lifeCam.far=Rm*400;lifeCam.updateProjectionMatrix();
   // cross-fade between scales
   const fs=1-ss(3.4,4.4,L),fx=1-ss(11.2,11.5,L),fm=ss(4.0,4.9,L)*fx,fo=ss(5.5,6.3,L)*fx,fw=ss(7.8,8.6,L)*fx;
@@ -1213,59 +1617,31 @@ function frame(now){
   glowFade(macroLights,(cam.focus?0:1)*night*ss(-1.6,-.9,L)*(1-ss(.6,1.4,L)),cam.R*.2);
   updateLife(Z,Rm,dt,fl,night);
   const lv=navLevel(Z);if(lv!==curLv){curLv=lv;[...scaleNav.children].forEach((n,i)=>n.classList.toggle('on',i===lv));}
-  labels.forEach(o=>{const v=o.life?Z:L,c=o.life?lifeCam:camera,on=v>o.lo&&v<o.hi&&!cam.focus;tmp.copy(o.p).project(c);
-    if(on&&tmp.z<1&&tmp.z>-1){o.el.style.transform='translate('+((tmp.x+1)/2*w).toFixed(1)+'px,'+((1-tmp.y)/2*h-8).toFixed(1)+'px)';o.el.style.opacity=1;}else o.el.style.opacity=0;});
-  if(Z<9.5&&!cam.focus)tip.classList.remove('show');
+  const po=cam.focus?0:(1-ss(4.65,5.2,Z))*(1-ss(-8.85,-9.15,Z)); // how much of the view is painted
+  P2.draw(Z,Rm,cam.th,night,sunL,dt,cam.shift,po);
   hud(Z,L);
+  labels.forEach(o=>{const v=o.life?Z:L;let on=v>o.lo&&v<o.hi&&!cam.focus,sx=0,sy=0;
+    if(o.life===2){const q=on&&P2.proj(o.p);if(q){sx=q[0];sy=q[1]-8;}else on=false;}
+    else if(on){tmp.copy(o.p).project(o.life?lifeCam:camera);if(tmp.z<1&&tmp.z>-1){sx=(tmp.x+1)/2*w;sy=(1-tmp.y)/2*h-8;}else on=false;}
+    if(on){o.el.style.transform='translate('+sx.toFixed(1)+'px,'+sy.toFixed(1)+'px)';o.el.style.opacity=(1-quoteOp).toFixed(2);}else o.el.style.opacity=0;});
+  if(Z<9.5&&!cam.focus)tip.classList.remove('show');
   live(false);
   renderer.clear();
-  if(cam.focus||Z>3.8){camera.layers.set(0);renderer.render(scene,camera);}
-  else if(night>.02&&Z>-1.2){camera.layers.set(1);renderer.render(scene,camera);camera.layers.set(0);} // just the stars, behind a night sky
-  if(fl>.002){renderer.clearDepth();renderer.render(life,lifeCam);}
+  if(po<.999){ // under a fully painted view, skip the 3D
+    if(cam.focus||Z>3.8){camera.layers.set(0);renderer.render(scene,camera);}
+    if(fl>.002){renderer.clearDepth();renderer.render(life,lifeCam);}}
   requestAnimationFrame(frame);
 }
 function updateLife(Z,Rm,dt,fl,night){
   life.visible=fl>.002;if(!life.visible)return;
-  const day=1-night,up=Z>-1.5;
-  skyDome.position.copy(lifeCam.position);skyDome.scale.setScalar(lifeCam.far*.45);skyDome.material.uniforms.sun.value.copy(sunL);skyDome.material.uniforms.day.value=day;
-  skyDome.material.uniforms.opacity.value=(1-ss(3.5,4.85,Z))*ss(-1.7,-1.1,Z);skyDome.visible=skyDome.material.uniforms.opacity.value>.01;
-  // lights: the same faint ambient as the orrery up high, real sunlight and streetlamps down low, a lamp for the microscope below
-  const low=1-ss(3.2,4.3,Z);
-  lifeSun.position.copy(sunL).multiplyScalar(1e5).add(lifeCam.position);lifeSun.target.position.copy(lifeCam.position);lifeSun.intensity=up?2.1*ss(-.05,.1,sunL.y):0;
-  lifeAmb.intensity=up?.045+low*(.12+.18*day):.045+.2*ss(-1.8,-2.6,Z)*(1-ss(-8.3,-8.9,Z));lifeHemi.intensity=up?low*(.15+.5*day):0;
-  microLight.intensity=1.3*ss(-1.2,-2,Z);microLight.position.copy(lifeCam.position).addScaledVector(lifeCam.up,Rm*.8);microLight.target.position.set(0,0,0);
+  const day=1-night;
+  lifeSun.position.copy(sunL).multiplyScalar(1e5).add(lifeCam.position);lifeSun.target.position.copy(lifeCam.position);lifeSun.intensity=Z>0?2.1*ss(-.05,.1,sunL.y):0;
+  lifeAmb.intensity=Z>0?.045+.25*day:.045;lifeHemi.intensity=Z>0?.3*day:0;
   atomLight.intensity=2.1*ss(-8.6,-9.0,Z);
-  // the globe patch hands over to the city ground, then to the street
-  earthPatch.visible=Z>1.8;earthPatch.material.opacity=fl;
-  const fc=1-ss(4.3,5.2,Z);cityGround.visible=fc>.01&&Z>-1.4;cityGround.material.opacity=fc;cityGround.material.emissiveIntensity=night*1.3;
-  city.visible=Z<4.9&&Z>-1.4;city.material.emissiveIntensity=.15+night*3.4;glowFade(city.userData.lights,city.visible?night*(1-ss(4.3,4.9,Z)):0,Rm*.2);
-  glowFade(cityLights,fl*night*(1-ss(4.9,5.6,Z))*(.15+.85*ss(1.5,3.2,Z))+fl*day*.04,Rm*.25);
-  planes.forEach((p,i)=>{p.a+=dt*p.w;planeDots.geometry.attributes.position.setXYZ(i,Math.cos(p.a)*p.r,p.h,Math.sin(p.a)*p.r);});
-  planeDots.geometry.attributes.position.needsUpdate=true;glowFade(planeDots,(.5+.5*Math.sin(performance.now()/180))*ss(5.2,4.4,Z)*ss(2.5,3.2,Z),Rm*.1);
-  street.visible=Z<3.2&&Z>-1.4;you.visible=Z<3.2&&Z>-2.6;const fst=1-ss(2.5,3.2,Z);streetFloor.material.opacity=fst;streetFloor.material.transparent=fst<.99;streetFloor.material.depthWrite=fst>=.99;
-  if(street.visible){lampHeads.forEach(hd=>hd.material.emissiveIntensity=night*2);lampLights.forEach(l=>l.intensity=night*1.6);glowFade(lampGlow,night,Rm*.05);
-    youRing.material.opacity=.7*ss(-.4,.4,Z)*(1-ss(2,3,Z));
-    people.forEach(g=>{const o=g.userData.o;g.userData.t+=dt;if(o.walk){g.position.x+=o.walk*dt;if(g.position.x>70)g.position.x=-70;if(g.position.x<-70)g.position.x=70;walkPose(g,g.userData.t,.45);}
-      else{g.userData.armR.rotation.x=Math.sin(g.userData.t*1.3)*.08;g.rotation.y=o.ry+Math.sin(g.userData.t*.4)*.1;}});
-    cars.forEach(c=>{c.position.x+=c.userData.v*dt;if(c.position.x>125)c.position.x=-125;if(c.position.x<-125)c.position.x=125;});}
-  // micro: skin, vessel, cells, chromosomes, chromatin, DNA, the atom
-  micro.visible=Z<-.4;if(!micro.visible)return;
-  const sk=ss(-.4,-1,Z)*(1-ss(-2.3,-2.9,Z));skin.visible=sk>.01;skin.material.opacity=sk*(1-.7*ss(-2,-2.5,Z));
-  const fv=ss(-1.9,-2.5,Z)*(1-ss(-4.6,-5.2,Z));vessel.visible=fv>.01;vessel.material.opacity=.3*fv;
-  capillaries.visible=fv>.01;capillaries.children.forEach(t=>t.material.opacity=.5*fv*(1-ss(-3.2,-3.8,Z)));
-  const fr=ss(-2.2,-2.9,Z)*(1-ss(-4.9,-5.4,Z));rbc.visible=fr>.01;rbc.material.uniforms.opacity.value=fr;rbc.material.uniforms.near.value=Rm*.35;
-  if(rbc.visible){const m=new THREE.Matrix4();rbcS.forEach((c,i)=>{const r2=(c.x*c.x+c.z*c.z)/(RV*RV);c.y+=dt*2.2e-4*(1-r2*.8);if(c.y>VL)c.y=-VL;
-      let x=c.x,z=c.z;const d=Math.hypot(x,c.y,z);if(d<1.4e-5){const k2=1.4e-5/Math.max(Math.hypot(x,z),1e-7);x*=k2;z*=k2;} // flow round the white cell
-      c.q.multiply(Q4.setFromEuler(new THREE.Euler(dt*.5*c.s,dt*.3,0)));m.compose(P4.set(x,c.y,z),c.q,S4.set(1,1,1));rbc.setMatrixAt(i,m);});rbc.instanceMatrix.needsUpdate=true;}
-  const fw2=ss(-3,-3.6,Z)*(1-ss(-5,-5.25,Z));wbc.visible=fw2>.01;wbc.material.uniforms.opacity.value=.55*fw2;wbc.material.uniforms.near.value=Rm*.3;wbc.rotation.y+=dt*.05;
-  const fn2=ss(-3.4,-4.2,Z)*(1-ss(-5.35,-5.6,Z));nucleus.visible=fn2>.01;nucleus.material.uniforms.opacity.value=.5*fn2;nucleus.material.uniforms.near.value=Rm*.3;
-  glowFade(granules,.6*ss(-3.6,-4.3,Z)*(1-ss(-5,-5.3,Z)),Rm*.3);
-  const fch=ss(-4.4,-5.2,Z)*(1-ss(-6.5,-6.9,Z));chromo.visible=fch>.01;chromo.material.opacity=fch;chromo.material.depthWrite=fch>.97;
-  const ff=ss(-6.3,-6.8,Z)*(1-ss(-7.6,-7.9,Z));fibre.visible=ff>.01;fibre.material.opacity=ff;fibre.material.depthWrite=ff>.97;
-  const fb=ss(-7.3,-7.8,Z)*(1-ss(-8,-8.3,Z));beads.visible=fb>.01;beads.userData.mats.forEach(m=>{m.opacity=fb;m.depthWrite=fb>.97;});
-  const fd=ss(-7.9,-8.25,Z)*(1-ss(-8.95,-9.2,Z));dna.visible=fd>.01;dna.userData.mats.forEach(m=>{m.opacity=fd;m.depthWrite=fd>.97;});
-  const fca=ss(-7.9,-8.25,Z)*(1-ss(-8.9,-9.1,Z));dna.userData.c.material.opacity=fca;dna.userData.c.visible=fca>.01;
-  const fa=ss(-8.85,-9.15,Z);atomUpdate(lifeAtom,fa,fa,fa,fa,Rm); // at the seam, exactly the atom on the other side
+  // the globe's own pixels, then the city's lights, until the satellite photo takes over
+  earthPatch.visible=Z>4;earthPatch.material.opacity=fl;
+  glowFade(cityLights,Z>4?fl*night*(1-ss(4.9,5.6,Z))+fl*day*.04:0,Rm*.25);
+  micro.visible=Z<-8.5;if(micro.visible){const fa=ss(-8.85,-9.15,Z);atomUpdate(lifeAtom,fa,fa,fa,fa,Rm);} // at the seam, exactly the atom on the other side
 }
 setTimeout(()=>{
   BODIES.forEach(build);PROBES.forEach(buildProbe);nasaModel();
@@ -1275,7 +1651,7 @@ setTimeout(()=>{
   // Moon's path around Earth
   moonTrail=trail(96);{const a=moonTrail.geometry.attributes.position;for(let i=0;i<=96;i++){const t=i/96*4.4;a.setXYZ(i,Math.cos(t)*5.2,0,Math.sin(t)*5.2);}}
   byId.earth.group.add(moonTrail);
-  resize();place();last=performance.now();requestAnimationFrame(frame);
+  resize();place();last=performance.now();requestAnimationFrame(frame);P2.prepare();
   veil.classList.add('gone');
 },30);
 })();
