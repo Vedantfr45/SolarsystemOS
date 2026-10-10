@@ -8,9 +8,9 @@ The 3D model is "Voyager Probe (B)" from [NASA 3D Resources](https://github.com/
 
 ## The endless zoom
 
-Scroll out past the cosmic web and other universes appear around ours. Keep going and they all turn out to sit inside one proton, in a carbon nucleus, in an atom drifting in the Sun's plasma. Zoom out of that Sun and you are back in the Solar System. Scroll in to the Sun and the same trip runs backwards. One turn is 13 powers of ten, and it loops forever in both directions. The left-hand scale menu jumps to any stop.
+The whole thing is one loop, centred on you. Scroll in on Earth and you drop over your city at its real time of day, down to the street where you stand among other people, cars and streetlights. Keep going into the back of your hand: skin, a blood vessel full of red cells, a white blood cell, its chromosomes, the coiled DNA inside them, and finally one carbon atom. Zoom into that atom's nucleus and inside one proton are other universes, ours among them; keep zooming in and you come back through the universe, the galaxy and the Solar System to Earth again. Scroll out and it all runs backwards. The scale menu on the left jumps to any stop, a readout at the top says how big the view really is compared with you, and two quotes appear along the way.
 
-Everything in the loop is drawn in code. Inspired by Charles and Ray Eames' *Powers of Ten* (1977), the closing shot of *Men in Black* (1997) and Ant-Man's Quantum Realm. The other universes are imagined; the proton, atom and Sun facts are real.
+The city is New Delhi; change `CITY` at the top of the script to stand anywhere else. Earth spins at its real rate and leans its real way, so day and night over the city are true to the clock. Sizes from the atom up to Earth, and the cosmic sizes, are real or close to it; the multiverse is imagined, and the proton full of universes is poetry, not physics. Everything is drawn in code. Inspired by Charles and Ray Eames' *Powers of Ten* (1977), the closing shot of *Men in Black* (1997) and Ant-Man's Quantum Realm. The quote over Earth is from Carl Sagan's *Pale Blue Dot* (1994).
 
 ## Music
 
