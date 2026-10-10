@@ -36,6 +36,15 @@ button:focus-visible{outline:1px solid var(--sun);outline-offset:3px}
 .time{position:fixed;top:env(safe-area-inset-top,0px);right:0;padding:24px;display:flex;gap:4px;transition:opacity .4s}
 .time button{padding:6px 10px;border:1px solid var(--line);color:var(--dim);letter-spacing:.08em;text-transform:uppercase;font-size:10px;border-radius:999px;backdrop-filter:blur(6px)}
 .time button[aria-pressed="true"]{color:var(--void);background:var(--ink);border-color:var(--ink)}
+.time #jy{margin-left:8px;color:var(--sun);border-color:var(--sun)}
+.time #jy[aria-pressed="true"]{color:var(--void);background:var(--sun)}
+.head,.scale,.index{transition:opacity .8s}
+body.journey .head,body.journey .scale,body.journey .index,body.journey .time button[data-rate]{opacity:0;pointer-events:none}
+#fade{position:fixed;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .45s}
+#fade.on{opacity:1}
+.hud .pow{display:block;font-family:var(--display);font-weight:400;font-size:44px;line-height:1;margin-bottom:10px;color:var(--ink);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.hud .pow sup{font-size:.48em;vertical-align:.95em;margin-left:.04em}
+.hud .pow small{font-size:.5em;margin-left:.25em;color:var(--dim)}
 body.open .time{opacity:0;pointer-events:none}
 
 .index{position:fixed;left:0;right:0;bottom:env(safe-area-inset-bottom,0px);padding:18px 24px;display:flex;gap:22px;overflow-x:auto;scrollbar-width:none;align-items:baseline}
@@ -150,6 +159,7 @@ body.open .hud{opacity:0}
   <button id="sp1" data-rate="86400" aria-pressed="false">Day/s</button>
   <button id="sp2" data-rate="2629800" aria-pressed="false">Month/s</button>
   <button id="sp3" data-rate="31557600" aria-pressed="false">Year/s</button>
+  <button id="jy" aria-pressed="false" title="One continuous zoom, from her eye out to the universe and back in to an atom">▶ Journey</button>
 </div>
 
 <div id="tip"></div>
@@ -174,7 +184,8 @@ body.open .hud{opacity:0}
   <div class="cred"><b>Purpose Is Glorious</b>Natalie Holt · <span>Loki Season 2 score · Marvel Studios / Hollywood Records</span> <em id="m-hint">· tap anywhere to play</em></div>
 </div>
 <audio id="song" src="assets/music/Purpose_Is_Glorious_Loki_S2.mp3" loop preload="auto"></audio>
-<div class="hud" id="hud" aria-live="off"><span>This view is</span><b id="hud-w"></b><i id="hud-you"></i><em id="hud-src"></em></div>
+<div id="fade"></div>
+<div class="hud" id="hud" aria-live="off"><div class="pow" id="hud-pow"></div><span>This view is</span><b id="hud-w"></b><i id="hud-you"></i><em id="hud-src"></em></div>
 <div class="quote" id="quote" aria-hidden="true"><div id="quote-in"></div></div>
 <div id="veil">Aligning the planets…</div>
 
@@ -188,7 +199,7 @@ const D2R=Math.PI/180, AU_KM=149597870.7;
 const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
 
 /* ---------- data ---------- */
-const CITY={name:'New Delhi',country:'India',lat:28.6315,lon:77.2167}; // where you stand, in Connaught Place: change these to move the pin on the globe
+const CITY={name:'New Delhi',country:'India',lat:28.6315,lon:77.2167}; // where she lies, on the lawn of Central Park in Connaught Place: change these to move the pin on the globe
 // JPL approximate Keplerian elements (J2000, valid 1800–2050): a, e, I, L, long.peri, long.node + rates per century
 const EL={
  mercury:[0.38709927,0.20563593,7.00497902,252.25032350,77.45779628,48.33076593,0.00000037,0.00001906,-0.00594749,149472.67411175,0.16047689,-0.12534081],
@@ -252,29 +263,32 @@ const INFO={
   text:'In this loop every universe fits inside a single proton. A real proton is three quarks, two up and one down, held together by gluons of the strong force. Most of its mass is the energy of that binding, not the quarks themselves.',
   facts:[['Diameter','About 1.7 femtometres'],['Made of','2 up quarks, 1 down quark'],['Charge','+1'],['Mass','938 MeV, 1.67 × 10⁻²⁷ kg'],['Lifetime','Over 10³⁴ years'],['Held by','Gluons, the strong force']]},
  atom:{id:'atom',name:'Carbon atom',kind:'Element 6',
-  text:'One carbon atom in the DNA of your hand, and the same atom that holds the proton full of universes. Six protons and six neutrons in a nucleus, and six electrons that do not orbit like planets: they are clouds of probability. Two fill the small round 1s cloud, two the larger 2s, two the dumbbell-shaped 2p, coloured blue and orange by the sign of their wave. The flickering points show where an electron would turn up if you measured it. If the nucleus were a marble, the atom would be a football stadium. It was forged inside a star.',
+  text:'One carbon atom in the DNA of her eye, and the same atom that holds the proton full of universes. Six protons and six neutrons in a nucleus, and six electrons that do not orbit like planets: they are clouds of probability. Two fill the small round 1s cloud, two the larger 2s, two the dumbbell-shaped 2p, coloured blue and orange by the sign of their wave. The flickering points show where an electron would turn up if you measured it. If the nucleus were a marble, the atom would be a football stadium. It was forged inside a star.',
   facts:[['Diameter','About 0.3 nanometres'],['Nucleus','About 5 femtometres'],['Protons','6'],['Neutrons','6'],['Electrons','6: 1s² 2s² 2p²'],['In your body','About 6 × 10²⁶ carbon atoms']]},
  dna:{id:'dna',name:'DNA',kind:'Deoxyribonucleic acid',
-  text:'Two strands twisted into a helix, joined by pairs of bases: A with T, C with G. The order of those letters is the recipe for you. Shown the way an atomic force microscope sees it: a fine needle feels its way along the strand, so the colours are height, not colour. Up close you can make out its two grooves and, at last, single atoms.',
+  text:'Two strands twisted into a helix, joined by pairs of bases: A with T, C with G. The order of those letters is the recipe for her, and for you. Shown the way an atomic force microscope sees it: a fine needle feels its way along the strand, so the colours are height, not colour. Up close you can make out its two grooves and, at last, single atoms.',
   facts:[['Width','2 nanometres'],['One full twist','10.5 base pairs, about 3.5 nm'],['Letters in you','About 3.1 billion pairs'],['Length per cell','About 2 metres, unwound'],['All of yours, end to end','About 70 billion km'],['Shared with any other human','99.9%']]},
  chromosome:{id:'chromosome',name:'Chromosome',kind:'Packaged DNA',
   text:'Two metres of DNA fit in a nucleus a few thousandths of a millimetre wide by winding around protein spools, then coiling, then coiling again. Shown as a spectral karyotype: each pair painted with its own fluorescent dye, the way geneticists check that all 46 are there. Any closer and light is too coarse to see, so an electron microscope takes over.',
   facts:[['In each cell','46, in 23 pairs'],['From each parent','23'],['Largest','Chromosome 1, 249 million letters'],['Smallest','Chromosome 21, about 46 million letters'],['Spools','Nucleosomes, 11 nm wide'],['Genes in total','About 20,000']]},
  cell:{id:'cell',name:'White blood cell',kind:'Immune cell',
-  text:'A guard of the immune system, riding your bloodstream among the red cells and squeezing out through vessel walls to hunt bacteria and viruses. Red blood cells have no nucleus and no DNA; this cell has both. It is stained purple here, as in a blood test, so its lobed nucleus shows.',
+  text:'A guard of the immune system, riding her bloodstream among the red cells and squeezing out through vessel walls to hunt bacteria and viruses. Red blood cells have no nucleus and no DNA; this cell has both. It is stained purple here, as in a blood test, so its lobed nucleus shows.',
   facts:[['Diameter','About 12 micrometres'],['Per drop of blood','About 200,000 to 500,000'],['Red cells per drop','About 250 million'],['Lifespan','Hours to years'],['Cells in your body','About 37 trillion'],['Made in','Bone marrow']]},
  vessel:{id:'vessel',name:'Blood vessel',kind:'Arteriole',
-  text:'A small artery under the skin of your hand, less than a tenth of a millimetre across. Red blood cells, shaped like dimpled discs, tumble through it single-minded, carrying oxygen from your lungs.',
+  text:'A tiny vessel in the white of her eye, less than a tenth of a millimetre across: the red threads you can see in anyone’s eye in a mirror. Red blood cells, shaped like dimpled discs, tumble through it single-minded, carrying oxygen from your lungs.',
   facts:[['Diameter','About 80 micrometres'],['Blood in you','About 5 litres'],['Vessels laid end to end','About 100,000 km'],['That is','Two and a half times round Earth'],['A red cell lives','About 120 days'],['One lap of your body','About a minute']]},
- you:{id:'you',name:'You',kind:'Homo sapiens',
-  text:'Standing in the plaza at the heart of Connaught Place on a small rocky planet, among strangers who each feel like the centre of the world too. Everything in this loop, from atoms to universes, is also in you.',
+ you:{id:'you',name:'Her',kind:'Homo sapiens',
+  text:'Lying on the grass in the middle of a city of 33 million, looking up at the sky, on a small rocky planet. One of 8 billion people who each feel like the centre of the world. Everything in this loop, from atoms to universes, is also in her, and in you.',
   facts:[['Height','About 1.7 m'],['Atoms','About 7 × 10²⁷'],['Cells','About 37 trillion'],['Humans alive','About 8.2 billion'],['Humans ever born','About 117 billion'],['Age of the atoms in you','Mostly over 4.6 billion years']]},
+ eye:{id:'eye',name:'Her eye',kind:'Human eye',
+  text:'Where the journey starts and ends, as in Cosmic Eye. A brown iris, its fibres and crypts as unique as a fingerprint, around a pupil that lets light in. The white is the sclera, laced with fine red vessels; the zoom dives into one of them. Two of these, a few centimetres apart, are how she sees the stars.',
+  facts:[['Diameter','About 24 mm'],['Iris','About 12 mm across'],['Pupil','2 to 8 mm'],['Light-sensing cells','About 126 million'],['Colours told apart','About a million'],['Farthest thing she can see','The Andromeda Galaxy, 2.5 million light-years']]},
  city:{id:'city',name:CITY.name,kind:'City in '+CITY.country,
-  text:'Roads, rooftops, water tanks and trees, all built in the last few centuries by people who were mostly strangers to each other. You stand in Connaught Place, the rings of white colonnades at the city’s heart. Change CITY in the code to move the pin on the globe.',
+  text:'Roads, rooftops, water tanks and trees, all built in the last few centuries by people who were mostly strangers to each other. She lies on the lawn of Central Park, inside the rings of white colonnades of Connaught Place at the city’s heart. Change CITY in the code to move the pin on the globe.',
   facts:[['Metro population','About 33 million'],['Area','About 1,500 km²'],['Latitude',CITY.lat.toFixed(2)+'° N'],['Longitude',CITY.lon.toFixed(2)+'° E'],['Seen from space at night','A web of orange light'],['Buildings drawn','About 5,000']]}
 };
-const LOOPNOTE='The loop is art built on real physics. From your hand down to the atom and from Earth out to the universe, sizes are real or close to it; the multiverse is imagined, and the jump from a proton to universes is poetry, not physics. Everything is drawn in code; below the clouds each scale is painted the way a real camera or microscope would show it. Inspired by Charles and Ray Eames’ film Powers of Ten (1977), the closing shot of Men in Black (1997) and Ant-Man’s Quantum Realm.';
-['multiverse','proton','atom','dna','chromosome','cell','vessel','you','city'].forEach(k=>INFO[k].note=LOOPNOTE);
+const LOOPNOTE='The loop is art built on real physics. From her eye down to the atom and from Earth out to the universe, sizes are real or close to it; the multiverse is imagined, and the jump from a proton to universes is poetry, not physics. Everything is drawn in code; below the clouds each scale is painted the way a real camera or microscope would show it. Inspired by Danail Obreschkow’s Cosmic Eye (2012), Charles and Ray Eames’ film Powers of Ten (1977), the closing shot of Men in Black (1997) and Ant-Man’s Quantum Realm.';
+['multiverse','proton','atom','dna','chromosome','cell','vessel','eye','you','city'].forEach(k=>INFO[k].note=LOOPNOTE);
 const byId={};BODIES.forEach(b=>byId[b.id]=b);
 
 /* ---------- Voyager probes ---------- */
@@ -541,7 +555,7 @@ const gluons=(function(){const n=3000,pos=new Float32Array(n*3),col=new Float32A
 const pWall=new THREE.Mesh(new THREE.SphereGeometry(RN*.995,48,32),new THREE.MeshBasicMaterial({color:0xff7a5c,side:THREE.BackSide,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));proton.add(pWall);
 
 // carbon-12 nucleus and its six electrons. The same atom sits in two places: here, holding the proton full of
-// universes, and in the DNA inside your hand. Both copies share one shape and one clock so the hand-off is invisible.
+// universes, and in the DNA inside her eye. Both copies share one shape and one clock so the hand-off is invisible.
 const PH=1.618,ICO=[[0,1,PH],[0,-1,PH],[0,1,-PH],[0,-1,-PH],[1,PH,0],[-1,PH,0],[1,-PH,0],[-1,-PH,0],[PH,0,1],[-PH,0,1],[PH,0,-1],[-PH,0,-1]];
 const nucMat=p=>new THREE.MeshStandardMaterial({color:p?0xd8553f:0x8c98b2,emissive:p?0x3a0d08:0x0e121c,roughness:.42,metalness:.08,transparent:true,opacity:0,depthWrite:false});
 const RE1=6e11,RE2=1.55e12;
@@ -605,8 +619,8 @@ const lifeTarget=new THREE.Vector3();
 function mat(c,o){return new THREE.MeshStandardMaterial(Object.assign({color:c,roughness:.8,metalness:0},o||{}));}
 function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h||w;draw(c.getContext('2d'),w,h||w);const t=new THREE.CanvasTexture(c);t.anisotropy=8;return t;}
 const rnd=(a,b)=>a+Math.random()*(b-a);
-// the zoom dives into the back of your right hand, held out 1.38 m above the pavement
-const ground=new THREE.Group();ground.position.set(0,-1.38,0);life.add(ground);
+// the zoom dives into her eye: she lies on the lawn, her eye about 20 cm above the grass
+const ground=new THREE.Group();ground.position.set(0,-.2,0);life.add(ground);
 const BLOCK=140;
 // lights of the whole metropolis, out to 25 km
 const cityLights=(function(){const n=14000,pos=new Float32Array(n*3),col=new Float32Array(n*3),sz=new Float32Array(n);
@@ -638,8 +652,8 @@ const lifeAtom=makeAtom(KA,micro);
 // straight above and drawn in perspective, so taller things lean outward as they do in a real aerial photograph.
 const P2=(function(){
 const cvs=document.getElementById('photo'),main=cvs.getContext('2d');
-const gnd=document.createElement('canvas'),gx=gnd.getContext('2d'),hnd=document.createElement('canvas'),hx=hnd.getContext('2d'),shd=document.createElement('canvas'),sx=shd.getContext('2d');
-const TANV=2*Math.tan(21*D2R),HH=1.38;   // the camera's field of view; your outstretched hand is 1.38 m above the ground
+const gnd=document.createElement('canvas'),gx=gnd.getContext('2d'),shd=document.createElement('canvas'),sx=shd.getContext('2d');
+const TANV=2*Math.tan(21*D2R),HH=.2;     // the camera's field of view; her eye, lying on the lawn, is 20 cm above the grass
 let W=1,H=1,DPR=1,cx=0,cy=0,K=1,Rm=1,ca=1,sa=0,c=main,on=false,clock=0,ready=0;
 const canFilter='filter' in main;
 
@@ -736,7 +750,7 @@ function paintMap(N,Wk,lights,extra){
 }
 
 /* ---------- Connaught Place and the streets around it, object by object ---------- */
-const CP=[-35,22],RAD=[8,52,97,141,186,229,274,318].map(a=>a*D2R);
+const CP=[-60,40],RAD=[8,52,97,141,186,229,274,318].map(a=>a*D2R);
 const far=(x,y)=>Math.hypot(x-CP[0],y-CP[1]);
 function nearRadial(x,y,m){const dx=x-CP[0],dy=y-CP[1];for(const a of RAD){const t=dx*Math.cos(a)+dy*Math.sin(a);if(t>0&&Math.abs(-dx*Math.sin(a)+dy*Math.cos(a))<m)return true;}return false;}
 const ROOF=['#b9b2a6','#c9c1b2','#a8a49c','#d3c7b1','#9c968c','#c2a891','#b7aca0','#d8d2c6','#8d8a85','#c4b49d','#a7978a','#d0bfa8'].map(hex);
@@ -807,12 +821,11 @@ const CITYD=(function(){
   const ppl=[],P0=o=>Object.assign({sh:SHIRT[R()*SHIRT.length|0],hr:HAIR[R()*HAIR.length|0],s:.88+R()*.24,ph:R()*6.28,dp:R()<.22?SHIRT[R()*SHIRT.length|0]:null},o);
   for(let q=0;q<320;q++){const r=q<140?Math.sqrt(R())*47:52+R()*62,a=R()*6.2832,mv=R()<.6;ppl.push(P0({x:CP[0]+Math.cos(a)*r,y:CP[1]+Math.sin(a)*r,a:R()*6.2832,v:mv?.7+R()*.7:0,sit:!mv&&q>=140&&R()<.5}));}
   for(let q=0;q<260;q++){const rr=R()<.5?137.6+R()*1.2:118.4+R()*1.2,a=R()*6.2832,d=R()<.5?1:-1;ppl.push(P0({ring:rr,ang:a,w:d*(.9+R()*.6)/rr,x:0,y:0,a:0,v:1}));}
-  ppl.forEach(p=>{if(Math.hypot(p.x+.8,p.y)<3.5)p.x-=4;});
-  return {bl,tr,rd,rg,gp,lp,cars,ppl};
+  const nearHer=(x,y,m)=>Math.abs(x+.04)<.5+m&&y>-.6-m&&y<1.8+m;
+  ppl.forEach(p=>{if(nearHer(p.x,p.y,1.2))p.x+=3.5;});
+  for(let i=tr.length-1;i>=0;i--)if(nearHer(tr[i][0],tr[i][1],tr[i][2]+2))tr.splice(i,1);
+  return {bl,tr,rd,rg,gp,lp,cars,ppl,nearHer};
 })();
-// your friends, and you: standing in the plaza, your right arm held out
-const FRIENDS=[{x:-1.75,y:-.45,a:0,sh:SHIRT[0],hr:HAIR[0],s:.95,dp:SHIRT[3]},{x:-1.05,y:1.15,a:-2.2,sh:SHIRT[6],hr:HAIR[2],s:1.05},{x:.55,y:-1.45,a:2.1,sh:SHIRT[10],hr:HAIR[1],s:1}];
-const YOU={x:-.8,y:.02,a:-Math.PI/2,sh:hex('#2b3a55'),hr:hex('#120d0a'),s:1.04};
 
 /* sprites */
 const TREES=[0,1,2,3].map(v=>mk(128,128,x=>{const R=rng(50+v),G=[['#2f4a22','#3d5e2a','#4f7234','#5f8240'],['#334d25','#466a2f','#5a7d3a','#6d8f47'],['#2b4220','#3a5629','#486b31','#577a3b'],['#3a4f26','#506a31','#64813c','#7a9449']][v];
@@ -835,7 +848,7 @@ const SKT=mk(512,512,x=>{const R=rng(9);
   for(let i=0;i<500;i++){x.fillStyle='rgba(40,20,10,.45)';x.fillRect(R()*512,R()*512,1.5,1.5);}});
 
 /* ---------- the micro world: rasters painted once ---------- */
-let L70=null,L70N=null,L12=null,L12N=null,SK1=null,SK2=null,TS=null,WBC=null,FL=null;
+let L70=null,L70N=null,L12=null,L12N=null,TS=null,WBC=null,FL=null;
 function paintL12(){
   const extra=(x,toPx,pk,R,Uat)=>{ // colonies of houses on their own street grids, then Connaught Place itself
     for(let X=-6;X<6;X+=.4)for(let Y=-6;Y<6;Y+=.4){const U=Uat(X+.2,Y+.2);if(U<.5||Math.hypot((X+.2)*1000-CP[0],(Y+.2)*1000-CP[1])<2300)continue;if(Math.abs(X+.2-rivX(Y+.2))<1.4)continue;
@@ -864,34 +877,6 @@ function drawFlat(x,toPx,pm,lights){
   if(lights)return;
   D.bl.forEach(b=>{x.fillStyle=rgb(b.c);x.beginPath();for(let i=0;i<b.p.length;i+=2){const p=toPx(b.p[i]/1000,b.p[i+1]/1000);i?x.lineTo(p[0],p[1]):x.moveTo(p[0],p[1]);}x.fill();});
   x.fillStyle='rgba(45,68,32,.85)';D.tr.forEach(t=>{const p=toPx(t[0]/1000,t[1]/1000);x.beginPath();x.arc(p[0],p[1],Math.max(.5,t[2]*pm),0,6.2832);x.fill();});
-}
-function paintSkin1(){ // the back of your hand, 4 cm across: furrows, pores, a few hairs
-  SK1=mk(2048,2048,x=>{const R=rng(31),N=2048;x.fillStyle='#8c5a3b';x.fillRect(0,0,N,N);
-    x.globalAlpha=.75;x.drawImage(field(160,(u,v)=>mix(hex('#77482d'),hex('#a5704f'),fbm(u*7,v*7,4))),0,0,N,N);x.globalAlpha=1;
-    x.lineCap='round';
-    [[.35,300],[-.6,300],[1.25,120]].forEach(([a,n])=>{for(let i=0;i<n;i++){const x0=R()*N,y0=R()*N,an=a+(R()-.5)*.25,len=80+R()*420;
-      wavy(x,x0,y0,an,len,.22,8,R);x.lineWidth=1.8;x.strokeStyle='rgba(55,28,14,.34)';x.stroke();
-      x.save();x.translate(-Math.sin(an)*1.6,Math.cos(an)*1.6);x.lineWidth=1;x.strokeStyle='rgba(245,200,170,.10)';x.stroke();x.restore();}});
-    for(let i=0;i<3000;i++){wavy(x,R()*N,R()*N,(R()<.5?.35:-.6)+(R()-.5)*.4,15+R()*45,.3,3,R);x.lineWidth=.8;x.strokeStyle='rgba(60,30,15,.16)';x.stroke();}
-    for(let i=0;i<340;i++){x.fillStyle='rgba(50,25,12,.5)';x.beginPath();x.arc(R()*N,R()*N,1+R()*.9,0,6.2832);x.fill();}
-    for(let i=0;i<26;i++){const x0=R()*N,y0=R()*N,a=(R()-.5)*1.2,l=50+R()*110;x.beginPath();x.moveTo(x0,y0);x.quadraticCurveTo(x0+Math.cos(a)*l*.5+(R()-.5)*40,y0+Math.sin(a)*l*.5+(R()-.5)*40,x0+Math.cos(a+(R()-.5))*l,y0+Math.sin(a+(R()-.5))*l);
-      x.lineWidth=.6;x.strokeStyle='rgba(32,20,12,.35)';x.stroke();}
-    x.lineCap='round';x.strokeStyle='rgba(75,80,115,.10)';x.lineWidth=70;wavy(x,0,N*.62,-.08,N,.2,10,R);x.stroke();wavy(x,N*.1,N*.2,.25,N*.9,.2,10,R);x.stroke();
-    feather(x,N,.74);});
-}
-function paintSkin2(){ // 4 mm across: the plateaus between furrows, flakes of dead skin, one hair leaving its pore
-  SK2=mk(2048,2048,x=>{const R=rng(41),N=2048;x.fillStyle='#93603f';x.fillRect(0,0,N,N);
-    x.globalAlpha=.8;x.drawImage(field(160,(u,v)=>mix(hex('#7c4b30'),hex('#a87452'),fbm(u*5+3,v*5,4))),0,0,N,N);x.globalAlpha=1;x.lineCap='round';
-    [[.35,26],[-.6,26],[1.25,10]].forEach(([a,n])=>{for(let i=0;i<n;i++){const x0=R()*N*1.2-N*.1,y0=R()*N*1.2-N*.1,an=a+(R()-.5)*.2;
-      wavy(x,x0,y0,an,500+R()*1200,.12,14,R);x.lineWidth=30;x.strokeStyle='rgba(60,30,15,.12)';x.stroke();x.lineWidth=11;x.strokeStyle='rgba(50,24,12,.32)';x.stroke();
-      x.save();x.translate(-Math.sin(an)*9,Math.cos(an)*9);x.lineWidth=4;x.strokeStyle='rgba(255,215,185,.13)';x.stroke();x.restore();}});
-    for(let i=0;i<9000;i++){const px=R()*N,py=R()*N,s=7+R()*10,a=R()*3.14;x.beginPath();for(let q=0;q<5;q++){const b=a+q*1.2566+(R()-.5)*.5;x.lineTo(px+Math.cos(b)*s,py+Math.sin(b)*s);}x.closePath();
-      x.fillStyle=R()<.5?'rgba(255,225,200,.045)':'rgba(70,35,20,.05)';x.fill();x.strokeStyle='rgba(255,230,210,.09)';x.lineWidth=.8;x.stroke();}
-    const hx0=N*.5+150,hy0=N*.5-80;const g=x.createRadialGradient(hx0,hy0,0,hx0,hy0,60);g.addColorStop(0,'rgba(30,15,8,.9)');g.addColorStop(1,'rgba(30,15,8,0)');x.fillStyle=g;x.beginPath();x.arc(hx0,hy0,60,0,6.2832);x.fill();
-    x.beginPath();x.moveTo(hx0,hy0);x.bezierCurveTo(hx0+300,hy0-40,hx0+700,hy0+60,hx0+1100,hy0-30);x.lineWidth=34;x.strokeStyle='#1d120c';x.stroke();
-    x.lineWidth=8;x.strokeStyle='rgba(190,150,120,.25)';x.save();x.translate(0,-8);x.stroke();x.restore();
-    x.setLineDash([2,9]);x.lineWidth=30;x.strokeStyle='rgba(255,255,255,.07)';x.stroke();x.setLineDash([]);
-    feather(x,N,.74);});
 }
 // tissue under the skin, 2.5 mm across: collagen, cells, capillaries, and the vessel the zoom follows (along x, 80 µm inside)
 const LR=40;   // the vessel's inner radius, µm
@@ -970,6 +955,8 @@ function drawCity(a){
   c.globalAlpha=a;T(0,1);
   D.gp.forEach(q=>{c.fillStyle=q.c;c.beginPath();if(q.r){if(Math.hypot(q.x,q.y)-q.r>VR)return;c.arc(q.x,q.y,q.r,0,6.2832);}else{if(!inV([q.p[0],q.p[1],q.p[4],q.p[5]]))return;c.rect(q.p[0],q.p[1],q.p[4]-q.p[0],q.p[5]-q.p[1]);}c.fill();});
   // a mottled texture for grass, dust and asphalt
+  if(GRASS&&k0>30){const g=GRASS[k0>500?0:k0>120?1:2];c.save();c.beginPath();c.arc(CP[0],CP[1],119,0,6.2832);c.arc(CP[0],CP[1],50,0,6.2832,true);c.clip();
+    const gp2=c.createPattern(g,'repeat');gp2.setTransform(new DOMMatrix().scaleSelf(1/g.width));c.fillStyle=gp2;c.globalAlpha=a*ss(30,90,k0);c.fillRect(-VR,-VR,2*VR,2*VR);c.restore();c.globalAlpha=a;}
   c.save();c.globalCompositeOperation='overlay';c.globalAlpha=a*.35;const pat=c.createPattern(grain,'repeat');const m=new DOMMatrix();pat.setTransform(m.scaleSelf(Math.max(.02,.6/k0*3)));c.fillStyle=pat;c.fillRect(-VR,-VR,2*VR,2*VR);c.restore();
   c.globalAlpha=a;c.lineCap='butt';
   const road=(r,w,col)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(r[0],r[1]);c.lineTo(r[2],r[3]);c.stroke();};
@@ -1054,64 +1041,214 @@ function person(o,x,y,a,ph,noR){
 function stepPeople(dt){const D=CITYD;D.ppl.forEach(p=>{p.ph+=dt*6*(p.v?1:0);
   if(p.ring){p.ang+=p.w*dt;p.x=CP[0]+Math.cos(p.ang)*p.ring;p.y=CP[1]+Math.sin(p.ang)*p.ring;p.a=p.ang+(p.w>0?Math.PI/2:-Math.PI/2);return;}
   if(!p.v)return;p.a+=(hs(p.x*3|0,p.y*3|0)-.5)*dt*.8;const nx=p.x+Math.cos(p.a)*p.v*dt,ny=p.y+Math.sin(p.a)*p.v*dt;
-  if(far(nx,ny)>115||Math.hypot(nx+.8,ny)<3.2)p.a+=Math.PI*(.6+.4*hs(p.x|0,p.y|0));else{p.x=nx;p.y=ny;}});
+  if(far(nx,ny)>115||D.nearHer(nx,ny,.8))p.a+=Math.PI*(.6+.4*hs(p.x|0,p.y|0));else{p.x=nx;p.y=ny;}});
   D.cars.forEach(q=>{q.t+=q.v*dt;if(q.r!==undefined){if(q.t>1)q.t-=1;if(q.t<0)q.t+=1;}});}
 function drawPeople(a,shadows){
   const VR=Math.hypot(W,H)/2/k(0)+3,list=CITYD.ppl;c.globalAlpha=a;
-  if(shadows){list.forEach(p=>{if(Math.abs(p.x)<VR&&Math.abs(p.y)<VR)personShadow(p,p.x,p.y);});FRIENDS.forEach(p=>personShadow(p,p.x,p.y));personShadow(YOU,YOU.x,YOU.y);
-    // the shadow of your arm and hand, far below and soft
-    T(0,.01);c.fillStyle='rgba(12,14,24,'+(shA*.8).toFixed(3)+')';c.save();c.translate(sv[0]*HH*100,sv[1]*HH*100);c.beginPath();c.roundRect(-60,-4,62,8,4);c.ellipse(4,0,10,5,0,0,6.2832);c.fill();c.restore();I();}
-  else{list.forEach(p=>{if(Math.abs(p.x)<VR&&Math.abs(p.y)<VR)person(p,p.x,p.y,p.a,p.ph);});FRIENDS.forEach(p=>person(p,p.x,p.y,p.a,0));person(YOU,YOU.x,YOU.y,YOU.a,0,true);}
+  if(shadows){list.forEach(p=>{if(Math.abs(p.x)<VR&&Math.abs(p.y)<VR)personShadow(p,p.x,p.y);});}
+  else{list.forEach(p=>{if(Math.abs(p.x)<VR&&Math.abs(p.y)<VR)person(p,p.x,p.y,p.a,p.ph);});}
   c.globalAlpha=1;
 }
 
-/* your arm and hand, in centimetres: wrist to fingertips along +x, palm down, thumb to the north */
-function capsule(pts,wid){
-  const L=[],Rr=[];for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)],dx=q[0]-o[0],dy=q[1]-o[1],n=Math.hypot(dx,dy)||1,nx=-dy/n,ny=dx/n,w=wid[i]/2;L.push([p[0]+nx*w,p[1]+ny*w]);Rr.push([p[0]-nx*w,p[1]-ny*w]);}
-  c.beginPath();c.moveTo(L[0][0],L[0][1]);for(let i=1;i<L.length;i++)c.lineTo(L[i][0],L[i][1]);
-  const e=pts[pts.length-1],q=pts[pts.length-2],an=Math.atan2(e[1]-q[1],e[0]-q[0]);c.arc(e[0],e[1],wid[wid.length-1]/2,an+Math.PI/2,an-Math.PI/2,true);
-  for(let i=Rr.length-1;i>=0;i--)c.lineTo(Rr[i][0],Rr[i][1]);
-  const s=pts[0],s1=pts[1],a0=Math.atan2(s1[1]-s[1],s1[0]-s[0]);c.arc(s[0],s[1],wid[0]/2,a0-Math.PI/2,a0+Math.PI/2,true);c.closePath();}
-const SKIN=hex('#8a5a3c');
-function roundShade(p0,p1,w,dark,light){ // shade a limb across its width so it reads as round
-  const mx=(p0[0]+p1[0])/2,my=(p0[1]+p1[1])/2,dx=p1[0]-p0[0],dy=p1[1]-p0[1],n=Math.hypot(dx,dy)||1,nx=-dy/n*w/2,ny=dx/n*w/2,g=c.createLinearGradient(mx-nx,my-ny,mx+nx,my+ny);
-  g.addColorStop(0,dark);g.addColorStop(.28,'rgba(0,0,0,0)');g.addColorStop(.42,light);g.addColorStop(.62,'rgba(0,0,0,0)');g.addColorStop(1,dark);c.fillStyle=g;c.fill();}
-const FING=[[-2.9,-.07,7.9,2.0],[-.97,-.01,8.8,2.05],[.98,.04,8.3,1.96],[2.85,.11,6.6,1.74]];
-function finger(by,an,len,w,nail){
-  const bx=3.3,ux=Math.cos(an),uy=Math.sin(an),T0=[0,.12,.44,.5,.72,.77,1],WW=[1,1,.95,1,.9,.93,.84],pts=T0.map(t=>[bx+ux*len*t,by+uy*len*t]),wid=WW.map(v=>v*w);
-  capsule(pts,wid);c.fillStyle=rgb(SKIN);c.fill();roundShade(pts[0],pts[6],w*1.02,'rgba(48,22,10,.55)','rgba(255,215,185,.12)');
-  c.save();c.translate(bx,by);c.rotate(an);c.lineCap='round';
-  [[.47,4,.13],[.745,3,.1]].forEach(([t,n,o])=>{for(let i=0;i<n;i++){const xx=len*t+(i-n/2)*.09;c.beginPath();c.moveTo(xx-.08,-w*.3);c.quadraticCurveTo(xx+.12,0,xx-.08,w*.3);c.lineWidth=.035;c.strokeStyle='rgba(45,22,10,'+(.25+o).toFixed(2)+')';c.stroke();}
-    const g=c.createRadialGradient(len*t,0,0,len*t,0,w*.5);g.addColorStop(0,'rgba(255,220,195,.10)');g.addColorStop(1,'rgba(255,220,195,0)');c.fillStyle=g;c.fillRect(len*t-w,-w,2*w,2*w);});
-  if(nail){const nl=len*.22,nw=w*.62,x0=len*.8;c.beginPath();c.roundRect(x0,-nw/2,nl+w*.3,nw,[nw*.15,nw*.5,nw*.5,nw*.15]);c.fillStyle='#c79b86';c.fill();
-    const g=c.createLinearGradient(x0,0,x0+nl+w*.3,0);g.addColorStop(0,'rgba(240,215,200,.5)');g.addColorStop(.18,'rgba(0,0,0,0)');g.addColorStop(.82,'rgba(0,0,0,0)');g.addColorStop(.86,'rgba(245,235,222,.95)');g.addColorStop(1,'rgba(245,235,222,.95)');c.fillStyle=g;c.fill();
-    c.strokeStyle='rgba(70,35,20,.45)';c.lineWidth=.04;c.stroke();c.fillStyle='rgba(255,255,255,.22)';c.fillRect(x0+nl*.25,-nw*.22,nl*.6,nw*.12);}
-  c.restore();}
-function drawHand(a,night){
-  if(a<.01||Rm>60)return;
-  const t=hx;t.setTransform(1,0,0,1,0,0);t.clearRect(0,0,W,H);const keep=c;c=t;T(HH,.01);
-  // sleeve and forearm
-  capsule([[-80,0],[-62,0],[-36,0]],[13,12,10.4]);c.fillStyle=rgb(YOU.sh);c.fill();roundShade([-80,0],[-36,0],12,'rgba(0,0,0,.45)','rgba(255,255,255,.08)');
-  c.strokeStyle='rgba(0,0,0,.22)';c.lineWidth=.25;for(let i=0;i<5;i++){c.beginPath();c.moveTo(-60+i*5,-5);c.quadraticCurveTo(-58+i*5,0,-61+i*5,5);c.stroke();}
-  capsule([[-37,0],[-20,0],[-5,0]],[7.8,7.2,6.2]);c.fillStyle=rgb(SKIN);c.fill();roundShade([-37,0],[-5,0],7.6,'rgba(45,20,8,.55)','rgba(255,215,185,.12)');
-  // thumb, the back of the hand, then the fingers
-  capsule([[-3.6,-2.2],[-1.2,-4.5],[1.3,-6.4],[2.8,-7.3]],[3.1,2.6,2.25,1.95]);c.fillStyle=rgb(shade(SKIN,.94));c.fill();roundShade([-3.6,-2.2],[2.8,-7.3],2.6,'rgba(45,20,8,.55)','rgba(255,215,185,.1)');
-  c.save();c.translate(2.8,-7.3);c.rotate(-.58);c.beginPath();c.roundRect(-1.5,-.62,1.6,1.24,.6);c.fillStyle='#c79b86';c.fill();c.strokeStyle='rgba(70,35,20,.45)';c.lineWidth=.04;c.stroke();c.restore();
-  const back=new Path2D();back.moveTo(-6.2,-3.1);back.quadraticCurveTo(-1,-4.7,3.7,-3.95);back.lineTo(4.9,-1.8);back.lineTo(5,.2);back.lineTo(4.6,2.3);back.lineTo(3.8,3.85);back.quadraticCurveTo(-1,4.15,-6.2,3.1);back.closePath();
-  c.fillStyle=rgb(SKIN);c.fill(back);
-  {const g=c.createRadialGradient(-.5,-.4,0,-.5,0,6.6);g.addColorStop(0,'rgba(255,220,190,.12)');g.addColorStop(.7,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(40,18,8,.42)');c.fillStyle=g;c.fill(back);}
-  c.lineCap='round';FING.forEach((f,i)=>{c.beginPath();c.moveTo(-4.6,f[0]*.45);c.quadraticCurveTo(0,f[0]*.75,3.9,f[0]);c.lineWidth=.45;c.strokeStyle='rgba(255,224,198,.10)';c.stroke();
-    c.save();c.translate(0,.32);c.lineWidth=.22;c.strokeStyle='rgba(50,24,10,.13)';c.stroke();c.restore();});
-  c.beginPath();c.moveTo(-6,1.3);c.bezierCurveTo(-3,1.6,-.6,.4,1.4,1.4);c.bezierCurveTo(2.4,1.9,3,2.6,3.6,3.2);c.moveTo(-1.6,1.1);c.quadraticCurveTo(-.8,-1.4,1.2,-2.4);
-  c.lineWidth=.32;c.strokeStyle='rgba(70,62,92,.2)';c.stroke();
-  [3,2,1,0].forEach(i=>{const f=FING[i];finger(f[0],f[1],f[2],f[3],true);});
-  FING.forEach(f=>{const g=c.createRadialGradient(4.2,f[0],0,4.2,f[0],1.1);g.addColorStop(0,'rgba(255,220,195,.16)');g.addColorStop(1,'rgba(255,220,195,0)');c.fillStyle=g;c.fillRect(3,f[0]-1.2,2.4,2.4);});
-  // skin texture and a scatter of fine hairs, only where there is skin
-  c.globalCompositeOperation='source-atop';const pat=c.createPattern(SKT,'repeat');pat.setTransform(new DOMMatrix().scaleSelf(2/512));c.globalAlpha=.6;c.fillStyle=pat;c.fillRect(-90,-20,110,40);c.globalAlpha=1;
-  const R=rng(3);c.lineWidth=.025;c.strokeStyle='rgba(28,16,10,.55)';c.beginPath();for(let i=0;i<260;i++){const x0=-36+R()*36,y0=(R()-.5)*(x0<-5?6.4:7),l=.3+R()*.5,an=(R()-.5)*.6;c.moveTo(x0,y0);c.lineTo(x0+Math.cos(an)*l,y0+Math.sin(an)*l);}c.stroke();
-  if(night>.01){c.globalAlpha=night*.22;c.fillStyle='#1a1420';c.fillRect(-90,-20,110,40);c.globalAlpha=night*.2;c.fillStyle='#ff9a40';c.fillRect(-90,-20,110,40);c.globalAlpha=1;}
-  c.globalCompositeOperation='source-over';
-  c=keep;I();c.globalAlpha=a;c.drawImage(hnd,0,0);c.globalAlpha=1;
+/* ---------- her: lying on her back on the lawn, in millimetres around the white of her left eye (x east, y south, head to the north) ---------- */
+const MX=-39,EYES=[[-7.5,0,1],[-70.5,0,-1]],IRIS=5.9,PUP=2.1,IY=-.6;
+const FH=[[0,-84],[38,-80],[60,-55],[68,-20],[67,12],[62,44],[51,70],[33,90],[14,101],[0,103]];
+const FACE=(()=>{const p=FH.map(q=>[MX+q[0],q[1]]).concat(FH.slice(1,-1).reverse().map(q=>[MX-q[0],q[1]]));return p;})();
+function smoothPath(x,pts){const n=pts.length,m=i=>{const a=pts[i%n],b=pts[(i+1)%n];return [(a[0]+b[0])/2,(a[1]+b[1])/2];};
+  x.beginPath();let q=m(n-1);x.moveTo(q[0],q[1]);for(let i=0;i<n;i++){q=m(i);x.quadraticCurveTo(pts[i][0],pts[i][1],q[0],q[1]);}x.closePath();}
+function paintHer(x,s,ox,oy){
+  const Wp=x.canvas.width,Hp=x.canvas.height,v=[-ox/s,-oy/s,(Wp-ox)/s,(Hp-oy)/s];
+  let all=false;const vis=(a,b,c2,d)=>all||c2>v[0]&&a<v[2]&&d>v[1]&&b<v[3];
+  const M=()=>x.setTransform(s,0,0,s,ox,oy);
+  const blur=mm=>{const p=mm*s;x.filter=p>.5?'blur('+Math.min(p,90).toFixed(1)+'px)':'none';},nob=()=>{x.filter='none';};
+  const blob=(cx,cy,rx,ry,col,b,rot)=>{if(!vis(cx-rx-3*b,cy-ry-3*b,cx+rx+3*b,cy+ry+3*b))return;blur(b);x.fillStyle=col;x.beginPath();x.ellipse(cx,cy,rx,ry,rot||0,0,6.2832);x.fill();nob();};
+  const glow=(cx,cy,r,col,a)=>{if(!vis(cx-r,cy-r,cx+r,cy+r))return;const g=x.createRadialGradient(cx,cy,0,cx,cy,r);g.addColorStop(0,col.replace('A',a));g.addColorStop(1,col.replace('A',0));x.fillStyle=g;x.fillRect(cx-r,cy-r,2*r,2*r);};
+  const line=(pts,w,col,b)=>{blur(b||0);x.beginPath();x.moveTo(pts[0][0],pts[0][1]);if(pts.length===3)x.quadraticCurveTo(pts[1][0],pts[1][1],pts[2][0],pts[2][1]);else if(pts.length===4)x.bezierCurveTo(pts[1][0],pts[1][1],pts[2][0],pts[2][1],pts[3][0],pts[3][1]);else x.lineTo(pts[1][0],pts[1][1]);x.lineWidth=w;x.strokeStyle=col;x.stroke();nob();};
+  M();x.lineCap='round';x.lineJoin='round';
+  const R=rng(77);
+  // her hair, fanned out on the grass around her head
+  // her body, in a pale T-shirt and jeans, arms by her sides
+  const limb=(pts,wid,col,dark,light)=>{const L=[],Rr=[];for(let i=0;i<pts.length;i++){const p=pts[i],q=pts[Math.min(i+1,pts.length-1)],o=pts[Math.max(i-1,0)],dx=q[0]-o[0],dy=q[1]-o[1],n=Math.hypot(dx,dy)||1,w=wid[i]/2;
+      L.push([p[0]-dy/n*w,p[1]+dx/n*w]);Rr.push([p[0]+dy/n*w,p[1]-dx/n*w]);}
+    const path=new Path2D();path.moveTo(L[0][0],L[0][1]);L.forEach(q=>path.lineTo(q[0],q[1]));for(let i=Rr.length-1;i>=0;i--)path.lineTo(Rr[i][0],Rr[i][1]);path.closePath();
+    blur(.8);x.fillStyle=col;x.fill(path);nob();x.save();x.clip(path);
+    {const p=pts[0],q=pts[pts.length-1],dx=q[0]-p[0],dy=q[1]-p[1],n=Math.hypot(dx,dy),w=Math.max(...wid)/2+4,m=[(p[0]+q[0])/2,(p[1]+q[1])/2],nx=-dy/n*w,ny=dx/n*w;
+      const g=x.createLinearGradient(m[0]-nx,m[1]-ny,m[0]+nx,m[1]+ny);g.addColorStop(0,dark);g.addColorStop(.3,'rgba(0,0,0,0)');g.addColorStop(.48,light);g.addColorStop(.66,'rgba(0,0,0,0)');g.addColorStop(1,dark);x.fillStyle=g;x.fill(path);}
+    x.restore();return path;};
+  const SH=[MX-200,MX+200];
+  if(vis(MX-340,140,MX+340,1720)){
+    if(s<4){blur(14);x.fillStyle='rgba(10,16,6,.42)';x.beginPath();x.ellipse(MX+10,880,215,720,0,0,6.2832);x.ellipse(MX+8,-40,175,190,0,0,6.2832);x.fill();nob();}
+    // legs in jeans
+    const J='#3e5374',Jd='rgba(10,18,35,.55)',Jl='rgba(170,190,215,.16)';
+    [-1,1].forEach(d=>{const lg=limb([[MX+d*74,650],[MX+d*80,900],[MX+d*84,1080],[MX+d*90,1300],[MX+d*96,1470]],[156,140,108,92,82],J,Jd,Jl);
+      x.save();x.clip(lg);x.globalAlpha=.25;x.drawImage(field(48,(u,w)=>{const q=fbm(u*4+d,w*20,3);return [30+q*60,45+q*70,70+q*90];}),MX+d*90-90,680,180,820);x.globalAlpha=1;
+      [[1060,1],[1090,.7],[1015,.6]].forEach(([yy,a])=>line([[MX+d*40,yy],[MX+d*84,yy+8+d*4],[MX+d*130,yy-4]],2.4,'rgba(10,18,35,'+(.35*a)+')',1.5));
+      line([[MX+d*140,700],[MX+d*150,1100],[MX+d*134,1470]],1.2,'rgba(200,160,90,.35)',.3);x.restore();
+      // white sneakers, toes up and falling outward
+      x.save();x.translate(MX+d*104,1545);x.rotate(d*.32);blur(1);x.fillStyle='#9a9a96';x.beginPath();x.ellipse(0,0,50,82,0,0,6.2832);x.fill();x.fillStyle='#ecebe6';x.beginPath();x.ellipse(0,-6,44,72,0,0,6.2832);x.fill();nob();
+      const g=x.createRadialGradient(-10,-20,5,0,0,70);g.addColorStop(0,'rgba(255,255,255,.4)');g.addColorStop(1,'rgba(0,0,0,.18)');x.fillStyle=g;x.beginPath();x.ellipse(0,-6,44,72,0,0,6.2832);x.fill();
+      for(let i=0;i<5;i++)line([[-16,-55+i*11],[16,-55+i*11]],2.2,'rgba(150,150,145,.8)');x.fillStyle='rgba(60,60,60,.35)';x.beginPath();x.ellipse(0,-62,18,8,0,0,6.2832);x.fill();x.restore();});
+    // arms, hands
+    [-1,1].forEach(d=>{limb([[MX+d*196,300],[MX+d*214,470],[MX+d*222,600],[MX+d*226,705]],[82,70,62,54],'#a26b49','rgba(60,30,15,.5)','rgba(255,220,195,.16)');
+      x.save();x.translate(MX+d*228,770);x.scale(d,1);blur(1);x.fillStyle='#a26b49';x.beginPath();x.moveTo(-28,-70);x.quadraticCurveTo(-38,-10,-26,40);x.quadraticCurveTo(-10,90,10,96);x.quadraticCurveTo(30,80,32,20);x.quadraticCurveTo(34,-40,26,-70);x.closePath();x.fill();
+      x.fillStyle='#996343';x.beginPath();x.ellipse(-34,-6,10,30,.25,0,6.2832);x.fill();nob();
+      [-14,-3,8,19].forEach((fx,i)=>line([[fx,30],[fx+1,60],[fx-1,84-Math.abs(i-1.5)*6]],1.2,'rgba(70,35,18,.4)',.6));
+      const g=x.createLinearGradient(-35,0,35,0);g.addColorStop(0,'rgba(60,30,15,.4)');g.addColorStop(.45,'rgba(255,220,195,.14)');g.addColorStop(1,'rgba(60,30,15,.4)');x.fillStyle=g;x.beginPath();x.moveTo(-28,-70);x.quadraticCurveTo(-38,-10,-26,40);x.quadraticCurveTo(-10,90,10,96);x.quadraticCurveTo(30,80,32,20);x.quadraticCurveTo(34,-40,26,-70);x.closePath();x.fill();x.restore();});
+    // neck, then the T-shirt over it
+    blur(1.5);x.fillStyle='#74462c';x.beginPath();x.moveTo(MX-42,60);x.lineTo(MX+42,60);x.quadraticCurveTo(MX+38,140,MX+60,215);x.lineTo(MX-60,215);x.quadraticCurveTo(MX-38,140,MX-42,60);x.fill();nob();
+    blob(MX,112,40,14,'rgba(40,20,10,.35)',8);line([[MX-22,170],[MX-50,186],[MX-90,190]],5,'rgba(255,215,190,.1)',3);line([[MX+22,170],[MX+50,186],[MX+90,190]],5,'rgba(255,215,190,.1)',3);
+    const T=new Path2D();T.moveTo(MX-64,166);T.quadraticCurveTo(MX,250,MX+64,166);T.quadraticCurveTo(MX+150,172,MX+205,200);T.quadraticCurveTo(MX+236,262,MX+242,338);T.lineTo(MX+165,346);
+    T.quadraticCurveTo(MX+150,450,MX+142,560);T.quadraticCurveTo(MX+148,600,MX+154,655);T.quadraticCurveTo(MX,668,MX-154,655);T.quadraticCurveTo(MX-148,600,MX-142,560);T.quadraticCurveTo(MX-150,450,MX-165,346);
+    T.lineTo(MX-242,338);T.quadraticCurveTo(MX-236,262,MX-205,200);T.quadraticCurveTo(MX-150,172,MX-64,166);T.closePath();
+    blur(1);x.fillStyle='#ddd6c8';x.fill(T);nob();x.save();x.clip(T);
+    {const g=x.createLinearGradient(MX-250,0,MX+250,0);g.addColorStop(0,'rgba(60,55,45,.45)');g.addColorStop(.2,'rgba(0,0,0,0)');g.addColorStop(.5,'rgba(255,255,250,.18)');g.addColorStop(.8,'rgba(0,0,0,0)');g.addColorStop(1,'rgba(60,55,45,.45)');x.fillStyle=g;x.fillRect(MX-260,150,520,560);}
+    // folds: soft ridges and valleys pulled from the shoulders and gathered at the waist
+    const FR=rng(4);for(let i=0;i<14;i++){const y0=200+FR()*450,x0=MX+(FR()-.5)*260,an=(FR()-.5)*1.2+(x0>MX?.4:-.4),L=60+FR()*140;
+      line([[x0,y0],[x0+Math.cos(an)*L*.5+(FR()-.5)*30,y0+Math.sin(an)*L*.5],[x0+Math.cos(an)*L,y0+Math.sin(an)*L]],16+FR()*14,FR()<.5?'rgba(70,62,50,.08)':'rgba(255,255,250,.1)',9);}
+    [-1,1].forEach(d=>{line([[MX+d*165,346],[MX+d*170,300],[MX+d*176,240]],6,'rgba(70,62,50,.22)',3);line([[MX+d*165,346],[MX+d*242,338]],3,'rgba(70,62,50,.35)',1.5);});
+    blob(MX,610,150,40,'rgba(70,62,50,.12)',12);
+    x.restore();line([[MX-64,166],[MX,250],[MX+64,166]],5,'rgba(200,192,178,1)',.8);
+    // a little of the lawn's shade where she touches it
+    if(s<4){blur(5);x.globalCompositeOperation='destination-over';x.fillStyle='rgba(8,12,4,.35)';x.fill(T);x.globalCompositeOperation='source-over';nob();}}
+  // her hair, spread out on the grass: wavy locks, each a bundle of strands that narrows to its tips
+  const lockOf=(p0,dir,len,w0,c,ph,f)=>{const P=[],N=[],n=28;let px=p0[0],py=p0[1];for(let i=0;i<=n;i++){const t=i/n,a=dir+c*t+.16*Math.sin(t*f*6.2832+ph)*Math.min(1,t*2.5);
+      P.push([px,py,t,w0*(1-.75*Math.pow(t,4))]);N.push([-Math.sin(a),Math.cos(a)]);px+=Math.cos(a)*len/n;py+=Math.sin(a)*len/n;}return {P,N};};
+  const LOCKS=[];{const H=rng(21);
+    for(let i=0;i<110;i++){const u=H()*2-1,ph=-Math.PI/2+u*1.25,r0=60+H()*10;LOCKS.push(lockOf([MX+Math.cos(ph)*r0*1.05,-35+Math.sin(ph)*r0*1.1],-Math.PI/2+u*.8+(H()-.5)*.2,(205+H()*45)*(1-.32*u*u),38+H()*16,(H()-.5)*.5,H()*6.28,.5+H()*.8));}
+    [-1,1].forEach(d=>{for(let i=0;i<16;i++){const t=i/15;LOCKS.push(lockOf([MX+d*(60+H()*6),-45+t*55],Math.PI/2-d*(.15+H()*.25),110+H()*80,26+H()*12,d*(H()*.3),H()*6.28,.4+H()*.6));}});}
+  if(vis(MX-420,-460,MX+420,260)){
+    blur(1);x.fillStyle='#140c08';x.beginPath();x.ellipse(MX,-42,74,74,0,0,6.2832);x.fill();nob();
+    blur(2.5);x.globalAlpha=.9;LOCKS.forEach(L=>{const {P,N}=L;let a=1e9,b2=1e9,c2=-1e9,d=-1e9;P.forEach(q=>{a=Math.min(a,q[0]);b2=Math.min(b2,q[1]);c2=Math.max(c2,q[0]);d=Math.max(d,q[1]);});if(!vis(a-30,b2-30,c2+30,d+30))return;
+      x.beginPath();P.forEach((q,i)=>{const e=[q[0]+N[i][0]*q[3]/2,q[1]+N[i][1]*q[3]/2];i?x.lineTo(e[0],e[1]):x.moveTo(e[0],e[1]);});for(let i=P.length-1;i>=0;i--){const q=P[i];x.lineTo(q[0]-N[i][0]*q[3]/2,q[1]-N[i][1]*q[3]/2);}x.closePath();
+      x.fillStyle='#150d09';x.fill();});nob();x.globalAlpha=1;
+    const ns=s>3?44:20;
+    LOCKS.forEach((L,li)=>{const {P,N}=L;let a=1e9,b2=1e9,c2=-1e9,d=-1e9;P.forEach(q=>{a=Math.min(a,q[0]);b2=Math.min(b2,q[1]);c2=Math.max(c2,q[0]);d=Math.max(d,q[1]);});if(!vis(a-30,b2-30,c2+30,d+30))return;
+      for(let k=0;k<ns;k++){const o=R()-.5,end=Math.round(P.length*(.82+R()*.18)),t=R(),wob=R()*6.28;x.beginPath();
+        for(let i=0;i<end;i++){const q=P[i],j=.06*q[3]*Math.sin(q[2]*9+wob),e=[q[0]+N[i][0]*(o*q[3]+j),q[1]+N[i][1]*(o*q[3]+j)];i?x.lineTo(e[0],e[1]):x.moveTo(e[0],e[1]);}
+        x.lineWidth=.05+R()*.09;x.globalAlpha=t<.12?.45:.75;x.strokeStyle=t<.07?'#8c6545':t<.12?'#b48c66':t<.5?'#2a1a11':'#0c0705';x.stroke();}});
+    x.globalAlpha=1;}
+  // neck and shoulders below the jaw, a little in shadow
+  if(vis(MX-70,60,MX+70,200)){blur(1.5);x.fillStyle='#74462c';x.beginPath();x.moveTo(MX-40,60);x.lineTo(MX+40,60);x.quadraticCurveTo(MX+36,140,MX+56,200);x.lineTo(MX-56,200);x.quadraticCurveTo(MX-36,140,MX-40,60);x.fill();nob();
+    line([[MX-22,150],[MX-30,120],[MX-34,95]],9,'rgba(255,215,190,.07)',4);line([[MX+22,150],[MX+30,120],[MX+34,95]],9,'rgba(255,215,190,.07)',4);
+    blob(MX,112,40,14,'rgba(40,20,10,.35)',8);}
+  // the face
+  if(!vis(MX-75,-90,MX+75,112))return;
+  x.save();smoothPath(x,FACE);x.clip();
+  {const g=x.createRadialGradient(MX,2,8,MX,10,100);g.addColorStop(0,'#bb835e');g.addColorStop(.55,'#ab7350');g.addColorStop(.85,'#8d5939');g.addColorStop(1,'#653c25');x.fillStyle=g;x.fillRect(MX-80,-90,160,200);}
+  x.globalAlpha=.16;x.drawImage(field(96,(u,w)=>{const q=fbm(u*9,w*9,4);return [120+q*120,70+q*80,45+q*60];}),MX-75,-90,150,200);x.globalAlpha=1;
+  glow(MX,-48,40,'rgba(255,228,205,A)',.2);glow(MX-46,-30,30,'rgba(70,35,20,A)',.18);glow(MX+46,-30,30,'rgba(70,35,20,A)',.18);
+  EYES.forEach(([cx,cy])=>{blob(cx,cy-2,21,13,'rgba(80,40,24,.22)',5);blob(cx,cy-16,17,4.5,'rgba(255,225,200,.10)',3);blob(cx+(cx>MX?-2:2),cy+9,12,4,'rgba(85,45,40,.14)',2.5);});
+  glow(MX-40,20,26,'rgba(255,222,198,A)',.2);glow(MX+40,20,26,'rgba(255,222,198,A)',.2);[-1,1].forEach(d=>{blob(MX+d*50,48,12,24,'rgba(80,40,22,.16)',9,d*.3);blob(MX+d*52,82,16,22,'rgba(70,35,20,.22)',8,d*.6);blob(MX+d*60,-25,10,30,'rgba(70,35,20,.15)',8);});glow(MX-38,34,20,'rgba(190,80,70,A)',.08);glow(MX+38,34,20,'rgba(190,80,70,A)',.08);
+  // nose, seen from straight in front: shading only, then the wings and nostrils
+  [-1,1].forEach(d=>{line([[MX+d*9,-4],[MX+d*10,12],[MX+d*11,26]],6,'rgba(85,42,22,.24)',3);});
+  line([[MX,-6],[MX,10],[MX,27]],3.5,'rgba(255,228,205,.22)',1.6);glow(MX,30,9,'rgba(255,230,210,A)',.28);
+  [-1,1].forEach(d=>{blob(MX+d*14,35,7,6,'rgba(95,48,28,.2)',2.5);blur(1.1);x.beginPath();x.arc(MX+d*14,35.5,6.5,d>0?-1.2:Math.PI+1.2,d>0?1.4:Math.PI-1.4,d<0);x.lineWidth=1.2;x.strokeStyle='rgba(70,32,18,.22)';x.stroke();nob();glow(MX+d*13,33,4,'rgba(255,225,205,A)',.14);
+    blob(MX+d*6.5,40.3,3.6,1.7,'rgba(45,20,11,.62)',.9,d*.38);});
+  blob(MX,44.5,15,2.6,'rgba(60,28,15,.28)',2);
+  [-1,1].forEach(d=>{line([[MX+d*18,42],[MX+d*25,52],[MX+d*27,68]],2,'rgba(70,34,20,.16)',1.6);line([[MX+d*4,46],[MX+d*5.5,52],[MX+d*6,56.5]],2.4,'rgba(255,225,200,.12)',1);});
+  // lips
+  if(vis(MX-30,50,MX+30,80)){
+    const lc=63.2;x.beginPath();x.moveTo(MX-25,lc);x.bezierCurveTo(MX-17,59,MX-10,55.6,MX-5.5,56.2);x.quadraticCurveTo(MX-2,56.4,MX,58);x.quadraticCurveTo(MX+2,56.4,MX+5.5,56.2);
+    x.bezierCurveTo(MX+10,55.6,MX+17,59,MX+25,lc);x.quadraticCurveTo(MX+12,64.2,MX,64.4);x.quadraticCurveTo(MX-12,64.2,MX-25,lc);x.closePath();blur(.35);x.fillStyle='#7b3f31';x.fill();nob();
+    x.beginPath();x.moveTo(MX-25,lc);x.quadraticCurveTo(MX-12,64.2,MX,64.4);x.quadraticCurveTo(MX+12,64.2,MX+25,lc);x.bezierCurveTo(MX+16,72,MX+8,73.5,MX,73.6);x.bezierCurveTo(MX-8,73.5,MX-16,72,MX-25,lc);x.closePath();
+    blur(.45);x.fillStyle='#8d4a3b';x.fill();nob();
+    blob(MX,67.6,10,2.1,'rgba(255,225,210,.2)',1.1);blob(MX-6,59.2,4,1.1,'rgba(255,220,205,.12)',.6);blob(MX+6,59.2,4,1.1,'rgba(255,220,205,.12)',.6);
+    line([[MX-25,lc],[MX-12,64.3],[MX,64.6]],.75,'rgba(45,18,12,.85)',.25);line([[MX+25,lc],[MX+12,64.3],[MX,64.6]],.75,'rgba(45,18,12,.85)',.25);
+    blob(MX-25.5,lc,1.3,1.1,'rgba(50,22,14,.45)',.6);blob(MX+25.5,lc,1.3,1.1,'rgba(50,22,14,.45)',.6);blob(MX,77.5,13,3,'rgba(70,32,18,.22)',2);}
+  glow(MX,90,15,'rgba(255,225,205,A)',.14);
+  // skin: fine mottling, pores where the camera is close enough to see them
+  if(s>12){const n=Math.min(60000,(v[2]-v[0])*(v[3]-v[1])*3);for(let i=0;i<n;i++){const px=v[0]+R()*(v[2]-v[0]),py=v[1]+R()*(v[3]-v[1]);x.fillStyle=R()<.5?'rgba(80,42,25,.13)':'rgba(255,225,205,.07)';x.beginPath();x.arc(px,py,.035+R()*.05,0,6.2832);x.fill();}}
+  EYES.forEach(e=>eye(e[0],e[1],e[2]));
+  // the hairline: hair swept back from the forehead and down past the temples
+  blur(1.2);x.fillStyle='#120a07';x.beginPath();x.moveTo(MX-75,40);x.lineTo(MX-66,-6);x.quadraticCurveTo(MX-62,-40,MX-48,-56);x.quadraticCurveTo(MX-26,-68,MX,-66);
+  x.quadraticCurveTo(MX+26,-68,MX+48,-56);x.quadraticCurveTo(MX+62,-40,MX+66,-6);x.lineTo(MX+75,40);x.lineTo(MX+80,-100);x.lineTo(MX-80,-100);x.closePath();x.fill();nob();
+  x.restore();
+  {const R3=rng(8);for(let i=0;i<(s>3?1400:500);i++){const u=R3()*2-1,hx=MX+u*64,hy=-66+Math.abs(u)**2.2*56+(Math.abs(u)>.92?(Math.abs(u)-.92)*500:0),ph=-Math.PI/2+u*1.1+(R3()-.5)*.2;
+    const L=(30+R3()*50)*(1-.8*ss(.7,1,Math.abs(u))),p0=[hx+(R3()-.5)*2,hy+R3()*1.5],b=(R3()-.5)*.3;x.globalAlpha=.75;line([p0,[p0[0]+Math.cos(ph)*L*.5,p0[1]+Math.sin(ph)*L*.5],[p0[0]+Math.cos(ph+b)*L,p0[1]+Math.sin(ph+b)*L]],.05+R3()*.07,R3()<.15?'#5a3f2a':'#0e0806');}x.globalAlpha=1;
+   x.lineWidth=1.4;blur(.5);x.strokeStyle='rgba(150,98,70,.55)';x.beginPath();x.moveTo(MX+1,-64);x.quadraticCurveTo(MX+2,-110,MX-2,-150);x.stroke();nob();}
+
+  function eye(cx,cy,side){
+    if(!vis(cx-25,cy-30,cx+25,cy+16))return;
+    all=true;x.save();x.translate(cx,cy);x.scale(side,1);const E=rng(side>0?11:12),hi=s>2.5;
+    const up=new Path2D();up.moveTo(-15,.8);up.bezierCurveTo(-8,-8.6,7,-8.6,15,-1);
+    const lo=new Path2D();lo.moveTo(15,-1);lo.bezierCurveTo(8,5.4,-8,5.8,-15,.8);
+    const F=new Path2D();F.moveTo(-15,.8);F.bezierCurveTo(-8,-8.6,7,-8.6,15,-1);F.bezierCurveTo(8,5.4,-8,5.8,-15,.8);F.closePath();
+    const bz=(a,b,c2,d,t)=>{const u=1-t;return u*u*u*a+3*u*u*t*b+3*u*t*t*c2+t*t*t*d;};
+    const UP=t=>[bz(-15,-8,7,15,t),bz(.8,-8.6,-8.6,-1,t)],LO=t=>[bz(15,8,-8,-15,t),bz(-1,5.4,5.8,.8,t)];
+    // the brow
+    blur(1.2);x.fillStyle='rgba(40,24,14,.28)';x.beginPath();x.moveTo(-14,-12.5);x.quadraticCurveTo(0,-23,19,-16.5);x.quadraticCurveTo(2,-19.5,-14,-17.5);x.closePath();x.fill();nob();
+    for(let i=0;i<(hi?520:160);i++){const t=E(),bx=-14+33*t,by=(1-t)*(1-t)*-15+2*(1-t)*t*-21.5+t*t*-16.5,w=(1-t)*4.6+1.4,yy=by+(E()-.5)*w;
+      const an=t<.18?-1.35+t*2:-.32+(E()-.5)*.35,L=2.5+E()*3.5;line([[bx,yy],[bx+Math.cos(an)*L*.6,yy+Math.sin(an)*L*.6-.3],[bx+Math.cos(an)*L,yy+Math.sin(an)*L]],.05+E()*.05,'rgba(22,14,9,'+(.5+E()*.35).toFixed(2)+')');}
+    // the fold of the upper lid, and the lid itself
+    line([[-13.5,-3.5],[-6,-12.4],[7,-12.8],[16.5,-4.5]],1.2,'rgba(70,34,20,.3)',.9);
+    blur(.8);x.beginPath();x.moveTo(-13.5,-3.5);x.bezierCurveTo(-6,-12.4,7,-12.8,16.5,-4.5);x.lineTo(15,-1);x.bezierCurveTo(7,-8.6,-8,-8.6,-15,.8);x.closePath();x.fillStyle='rgba(205,140,115,.13)';x.fill();nob();
+    if(hi){line([[16,-2],[19,-3],[22,-4.5]],.18,'rgba(70,34,20,.2)',.15);line([[16,0],[19.5,.4],[23,.2]],.18,'rgba(70,34,20,.18)',.15);line([[15.5,2],[18.5,3.4],[21.5,4.2]],.16,'rgba(70,34,20,.16)',.15);}
+    // inside the opening: the white, its vessels, the iris
+    x.save();x.clip(F);
+    {const g=x.createRadialGradient(0,IY,3,0,IY,17);g.addColorStop(0,'#e4dbd3');g.addColorStop(.45,'#dbcfc6');g.addColorStop(.8,'#c7aea4');g.addColorStop(1,'#a77e74');x.fillStyle=g;x.fillRect(-16,-10,32,17);}
+    if(hi){x.globalAlpha=.12;x.drawImage(field(64,(u,w)=>{const q=fbm(u*6+side,w*3,3);return [200+q*55,170+q*60,165+q*60];}),-16,-10,32,17);x.globalAlpha=1;}
+    const vessel=(x0,y0,an,len,w,a)=>{blur(w*.35);wavy(x,x0,y0,an,len,.5,Math.max(4,len*2|0),E);x.lineWidth=w;x.strokeStyle='rgba(170,42,42,'+a+')';x.stroke();nob();};
+    for(let i=0;i<18;i++){const med=i<9,x0=med?-15+E()*1.5:14.5-E()*1.5,y0=(E()-.5)*3.5,an=(med?0:Math.PI)+(E()-.5)*.6,len=5+E()*4;
+      if(side>0&&!med&&Math.abs(y0)<.9)continue;
+      vessel(x0,y0,an,len,.04+E()*.07,(.25+E()*.35).toFixed(2));
+      for(let b=0;b<3;b++){const t=E()*len*.7,bx=x0+Math.cos(an)*t,by=y0+Math.sin(an)*t;vessel(bx,by,an+(E()-.5)*2,1+E()*2.5,.025+E()*.03,(.2+E()*.25).toFixed(2));}}
+    if(side>0){ // the vessel the zoom follows: through the origin, running east-west, 80 µm wide
+      const yv=lx=>lx>7.5?.02*(lx-7.5)**2:-.03*(lx-7.5)**2;x.beginPath();for(let lx=15;lx>=6.3;lx-=.05)lx===15?x.moveTo(lx,yv(lx)):x.lineTo(lx,yv(lx));
+      x.lineWidth=.22;x.strokeStyle='rgba(190,70,70,.14)';x.stroke();x.lineWidth=.08;x.strokeStyle='rgba(158,26,32,.8)';x.stroke();
+      x.lineWidth=.016;x.strokeStyle='rgba(255,200,190,.25)';x.save();x.translate(0,-.012);x.stroke();x.restore();
+      vessel(6.4,yv(6.4),Math.PI+.5,1.3,.04,.5);vessel(6.4,yv(6.4),Math.PI-.6,1.1,.035,.45);vessel(11,yv(11),-1.9,2.2,.04,.45);vessel(9.3,yv(9.3),1.7,1.8,.035,.4);}
+    x.save();x.translate(0,IY);
+    {const g=x.createRadialGradient(0,0,PUP,0,0,IRIS);g.addColorStop(0,'#2a170d');g.addColorStop(.2,'#4a2c18');g.addColorStop(.5,'#6a4426');g.addColorStop(.82,'#4c2f1b');g.addColorStop(1,'#26170e');x.fillStyle=g;x.beginPath();x.arc(0,0,IRIS,0,6.2832);x.fill();}
+    for(let i=0;i<(hi?1300:260);i++){const a=E()*6.2832,r1=PUP+.15+E()*.6,r2=IRIS-.25-E()*1.2,wb=(E()-.5)*.25,lt=E()<.55;
+      x.beginPath();x.moveTo(Math.cos(a)*r1,Math.sin(a)*r1);x.quadraticCurveTo(Math.cos(a+wb)*(r1+r2)/2,Math.sin(a+wb)*(r1+r2)/2,Math.cos(a+wb*.3)*r2,Math.sin(a+wb*.3)*r2);
+      x.lineWidth=.025+E()*.05;x.strokeStyle=lt?'rgba(165,118,72,.22)':'rgba(18,10,6,.25)';x.stroke();}
+    x.beginPath();for(let i=0;i<=120;i++){const a=i/120*6.2832,r=3.25+.28*Math.sin(a*11+1)*Math.sin(a*7)+.1*Math.sin(a*29);i?x.lineTo(Math.cos(a)*r,Math.sin(a)*r):x.moveTo(r,0);}
+    x.lineWidth=.3;x.strokeStyle='rgba(175,122,74,.4)';blur(.08);x.stroke();nob();
+    blur(.05);for(let i=0;i<14;i++){const a=E()*6.2832,r=3.7+E()*1.3;x.fillStyle='rgba(14,8,5,.3)';x.beginPath();x.ellipse(Math.cos(a)*r,Math.sin(a)*r,.35+E()*.3,.1+E()*.08,a,0,6.2832);x.fill();}nob();
+    [4.75,5.25].forEach(r=>{x.beginPath();x.arc(0,0,r,0,6.2832);x.lineWidth=.07;x.strokeStyle='rgba(20,12,8,.3)';x.stroke();});
+    {const g=x.createRadialGradient(0,0,IRIS-.75,0,0,IRIS+.15);g.addColorStop(0,'rgba(12,7,4,0)');g.addColorStop(.65,'rgba(12,7,4,.7)');g.addColorStop(1,'rgba(12,7,4,0)');x.fillStyle=g;x.beginPath();x.arc(0,0,IRIS+.15,0,6.2832);x.fill();}
+    {const g=x.createRadialGradient(0,0,0,0,0,PUP+.06);g.addColorStop(0,'#030303');g.addColorStop(.92,'#060505');g.addColorStop(1,'rgba(6,5,5,0)');x.fillStyle=g;x.beginPath();x.arc(0,0,PUP+.06,0,6.2832);x.fill();}
+    x.beginPath();x.arc(0,0,PUP+.06,0,6.2832);x.lineWidth=.12;x.strokeStyle='rgba(125,72,40,.45)';x.stroke();
+    // the wet cornea: the sky reflected in it, and one bright window of light
+    {const g=x.createRadialGradient(-side*1.5,-2,0,0,0,IRIS+.4);g.addColorStop(0,'rgba(210,225,245,.16)');g.addColorStop(1,'rgba(210,225,245,0)');x.fillStyle=g;x.beginPath();x.arc(0,0,IRIS+.4,0,6.2832);x.fill();}
+    blur(.18);x.fillStyle='rgba(255,255,255,.92)';x.beginPath();x.roundRect(-side*2.4-1.3,-3.6,2.6,2,.7);x.fill();x.fillStyle='rgba(255,255,255,.5)';x.beginPath();x.arc(side*1.6,1.9,.35,0,6.2832);x.fill();nob();
+    x.restore();
+    blur(1.6);x.lineWidth=3.6;x.strokeStyle='rgba(60,32,22,.5)';x.stroke(up);nob();blur(.7);x.lineWidth=1.4;x.strokeStyle='rgba(70,38,28,.28)';x.stroke(lo);nob();
+    blur(.06);x.lineWidth=.32;x.strokeStyle='rgba(255,255,255,.45)';x.save();x.translate(0,-.45);x.stroke(lo);x.restore();nob();
+    x.restore();
+    // lid margins, the pink corner, the lashes
+    x.lineWidth=.75;x.strokeStyle='#3b2117';x.stroke(up);x.lineWidth=.5;x.strokeStyle='rgba(160,95,85,.85)';x.stroke(lo);
+    x.save();x.translate(0,.35);x.lineWidth=.25;x.strokeStyle='rgba(70,38,26,.45)';x.stroke(lo);x.restore();
+    blob(-14,.6,1.7,1.2,'rgba(190,118,104,.85)',.25);blob(-14.3,.3,.6,.35,'rgba(255,255,255,.4)',.08);
+    const lash=(p,an,L,w,curl,a)=>{const p1=[p[0]+Math.cos(an)*L*.55,p[1]+Math.sin(an)*L*.55],p2=[p[0]+Math.cos(an+curl)*L,p[1]+Math.sin(an+curl)*L];
+      x.beginPath();x.moveTo(p[0],p[1]);x.quadraticCurveTo(p1[0],p1[1],p2[0],p2[1]);x.lineWidth=w;x.strokeStyle='rgba(12,7,5,'+a+')';x.stroke();
+      x.beginPath();x.moveTo(p[0],p[1]);x.lineTo(p[0]+(p1[0]-p[0])*.7,p[1]+(p1[1]-p[1])*.7);x.lineWidth=w*1.7;x.stroke();};
+    for(let i=0;i<(hi?100:50);i++){const t=.08+.91*E(),p=UP(t),an=-Math.PI/2+(t-.45)*1.8+(E()-.5)*.3,L=(1.8+3.4*Math.sin(Math.PI*Math.min(1,t*1.1)))*(.7+E()*.45);lash(p,an,L,.05+E()*.035,(t-.4)*.6,(.55+E()*.35).toFixed(2));}
+    for(let i=0;i<(hi?35:18);i++){const t=.1+.8*E(),p=LO(t),an=Math.PI/2+(.5-t)*1.1+(E()-.5)*.3,L=.9+E()*1.6;lash(p,an,L,.03+E()*.02,(.5-t)*.4,(.3+E()*.3).toFixed(2));}
+    x.restore();all=false;
+  }
+}
+
+// her, painted once at four scales: whole, face, eye, and the white of the eye around the vessel the zoom follows
+let HB=null,HF=null,HE=null,HS=null,GRASS=null;
+function paintHerAll(){HB=mk(720,2200,x=>paintHer(x,1,360-MX,470));}
+function paintHerFace(){HF=mk(2048,2048,x=>{const k=2048/320;paintHer(x,k,1024-MX*k,1024-10*k);feather(x,2048,.82);});}
+function paintHerEye(){HE=mk(2048,2048,x=>{const k=2048/60;paintHer(x,k,1024+7.5*k,1024+2*k);feather(x,2048,.8);});}
+function paintHerWhite(){HS=mk(2048,2048,x=>{paintHer(x,256,1024,1024);feather(x,2048,.8);});}
+// the lawn: one metre of grass blades seen from above, tiling, with smaller copies for when it is far away
+function paintGrass(){const N=1024,R=rng(61),G=['#283d1c','#33491f','#3e5726','#4b662c','#587534','#67853c','#789447','#8ea456','#a8b466'].map(hex);
+  const g=mk(N,N,x=>{x.fillStyle='#34481f';x.fillRect(0,0,N,N);x.lineCap='round';
+    for(let i=0;i<30000;i++){const t=i/30000,x0=R()*N,y0=R()*N,a=R()*6.2832,L=9+R()*28,b=(R()-.5)*.8,w=1.4+R()*2.4,ci=Math.max(0,Math.min(8,Math.round(t*6.5+(R()-.5)*3)));
+      x.strokeStyle=rgb(G[ci],.9);x.lineWidth=w;
+      for(const dx of[-N,0,N])for(const dy of[-N,0,N]){const X=x0+dx,Y=y0+dy;if(X<-L||X>N+L||Y<-L||Y>N+L)continue;
+        x.beginPath();x.moveTo(X,Y);x.quadraticCurveTo(X+Math.cos(a)*L*.5,Y+Math.sin(a)*L*.5,X+Math.cos(a+b)*L,Y+Math.sin(a+b)*L);x.stroke();}}});
+  GRASS=[g,mk(256,256,x=>{x.imageSmoothingQuality='high';x.drawImage(g,0,0,256,256);}),mk(64,64,x=>{x.imageSmoothingQuality='high';x.drawImage(g,0,0,64,64);})];}
+function rasterAt(im,xm,ym,wm,hm,h,a){if(!im||a<.01)return;T(h,.001);c.globalAlpha=a;c.drawImage(im,xm-wm/2,ym-hm/2,wm,hm);c.globalAlpha=1;}
+function drawHer(Z,a){
+  rasterAt(HB,MX,630,720,2200,HH,a);
+  if(Z<.7)rasterAt(HF,MX,10,320,320,HH,a*ss(.7,.4,Z));
+  if(Z<-.4)rasterAt(HE,-7.5,-2,60,60,HH,a*ss(-.4,-.7,Z));
+  if(Z<-1.4)rasterAt(HS,0,0,8,8,HH,a*ss(-1.4,-1.7,Z));
 }
 
 /* ---------- the microscopes ---------- */
@@ -1159,17 +1296,17 @@ function drawAFM(a){
 }
 
 /* ---------- the frame ---------- */
-const SRC=[[4.65,'Satellite photo'],[2.4,'Seen from a drone'],[-.95,'Seen from a drone, right above you'],[-2.45,'Dermatoscope'],[-5.0,'Light microscope, stained'],[-6.3,'Fluorescence microscope'],[-7.95,'Electron microscope'],[-8.9,'Atomic force microscope'],[-99,'']];
+const SRC=[[4.65,'Satellite photo'],[2.4,'Seen from a drone'],[-.5,'Seen from a drone, right above her'],[-1.6,'Macro lens'],[-2.55,'Slit-lamp microscope'],[-5.0,'Light microscope, stained'],[-6.3,'Fluorescence microscope'],[-7.95,'Electron microscope'],[-8.9,'Atomic force microscope'],[-99,'']];
 function source(Z){if(Z>4.65)return '';for(const q of SRC)if(Z>q[0])return q[1];return '';}
 function scaleBar(Z){
-  const h=Z<.6?HH:0,mpp=1/k(h),target=Math.min(W,H)*.18*mpp,e=Math.pow(10,Math.floor(Math.log10(target))),m=target/e,L=(m>=5?5:m>=2?2:1)*e,px=L/mpp;
+  const h=Z<1.5?HH:0,mpp=1/k(h),target=Math.min(W,H)*.18*mpp,e=Math.pow(10,Math.floor(Math.log10(target))),m=target/e,L=(m>=5?5:m>=2?2:1)*e,px=L/mpp;
   const lab=L>=1000?L/1000+' km':L>=1?L+' m':L>=1e-2?+(L*100).toFixed(0)+' cm':L>=1e-3?+(L*1e3).toFixed(0)+' mm':L>=1e-6?+(L*1e6).toFixed(0)+' µm':+(L*1e9).toFixed(1)+' nm';
   const x1=W-28*DPR,y=H-(innerWidth<641?118:76)*DPR;I();c.globalAlpha=.9;c.fillStyle='rgba(0,0,0,.45)';c.fillRect(x1-px-4*DPR,y-20*DPR,px+8*DPR,28*DPR);
   c.fillStyle='#fff';c.fillRect(x1-px,y,px,3*DPR);c.font=(10*DPR)+'px ui-monospace,Menlo,monospace';c.textAlign='right';c.fillText(lab,x1,y-6*DPR);c.globalAlpha=1;
 }
-function resize(w,h,dpr){DPR=Math.min(dpr,2,Math.sqrt(4.2e6/(w*h)));W=Math.round(w*DPR);H=Math.round(h*DPR);[cvs,gnd,hnd,shd].forEach(e=>{e.width=W;e.height=H;});}
+function resize(w,h,dpr){DPR=Math.min(dpr,2,Math.sqrt(4.2e6/(w*h)));W=Math.round(w*DPR);H=Math.round(h*DPR);[cvs,gnd,shd].forEach(e=>{e.width=W;e.height=H;});}
 // in a quiet moment after start, paint the maps and microscope slides one at a time
-function prepare(){const jobs=[()=>{L70=paintMap(2048,70,false);},()=>{L70N=paintMap(1024,70,true);},paintL12,()=>paintL12N(),paintSkin1,paintSkin2,paintTissue,paintWBC,paintFL];
+function prepare(){const jobs=[()=>{L70=paintMap(2048,70,false);},()=>{L70N=paintMap(1024,70,true);},paintL12,()=>paintL12N(),paintGrass,paintHerAll,paintHerFace,paintHerEye,paintHerWhite,paintTissue,paintWBC,paintFL];
   const next=()=>{const j=jobs.shift();if(!j){ready=1;return;}j();setTimeout(next,30);};setTimeout(next,400);}
 function draw(Z,rm,th,nt,sun,dt,shift,op){
   if(op<.003){if(on){cvs.style.opacity=0;on=false;}return;}
@@ -1181,9 +1318,9 @@ function draw(Z,rm,th,nt,sun,dt,shift,op){
   shA=.42*ss(0,.12,sun.y)+.14*nt;if(sun.y<0)sv=[.12,.18];
   c=main;I();c.globalCompositeOperation='source-over';c.globalAlpha=1;c.filter='none';
   // the city, the street and you
-  if(Z>-1.65){
+  if(Z>-2.75){
     if(Z<3)stepPeople(dt);
-    const blur=canFilter&&Z<1.25?Math.min(26,30*DPR*Math.pow(HH/(Rm+HH),1.3))*ss(1.25,.55,Z):0;
+    const blur=0;
     if(blur>.5){fill('#857e70',1);c=gx;I();}
     fill('#857e70',1);
     if(Z>3.5)raster(L70,7e4,0,1,1);
@@ -1192,6 +1329,7 @@ function draw(Z,rm,th,nt,sun,dt,shift,op){
     if(Z<2.6)drawPeople(ss(2.6,2.2,Z),true);
     if(blur>.5){c=main;I();c.filter='blur('+blur.toFixed(1)+'px)';c.drawImage(gnd,0,0);c.filter='none';}
     if(Z<2.6)drawPeople(ss(2.6,2.2,Z),false);
+    if(Z<2.6)drawHer(Z,ss(2.6,2.2,Z));
     if(Z>2.6)fill('#b4c0d0',.16*ss(2.6,4.6,Z)); // haze, from high up
     const gN=nt*ss(-1.35,-.8,Z);
     if(gN>.01){I();c.globalCompositeOperation='multiply';c.fillStyle=rgb(mix([255,255,255],[30,40,72],gN));c.fillRect(0,0,W,H);
@@ -1203,10 +1341,8 @@ function draw(Z,rm,th,nt,sun,dt,shift,op){
           c.globalAlpha=a*.8;S(p[0]+f[0]*(L+2),p[1]+f[1]*(L+2),0);c.drawImage(headS,P[0]-g,P[1]-g,2*g,2*g);c.globalAlpha=a*.6;S(p[0]-f[0]*L,p[1]-f[1]*L,0);c.drawImage(tailS,P[0]-g*.4,P[1]-g*.4,.8*g,.8*g);});}
         c.globalAlpha=1;}
       c.globalCompositeOperation='source-over';}
-    if(Z<.9)drawHand(1,nt*ss(-1.35,-.8,Z));
   }
   // under the skin, and on down
-  if(Z<-.85&&Z>-3.1){raster(SK1,.04,HH,1e-3,ss(-.85,-1.35,Z));raster(SK2,.004,HH,1e-6,ss(-1.85,-2.3,Z));}
   if(Z<-2.45&&Z>-5.4){const a=ss(-2.45,-2.9,Z);fill('#ecc9c6',a*ss(-2.9,-3.1,Z));raster(TS,2.5e-3,HH,1e-6,a);
     if(Z<-2.85){if(Z>-5.3)stepRBC(dt);drawRBC(ss(-2.85,-3.25,Z));}
     if(Z<-3.15)raster(WBC,14e-6,HH,1e-6,ss(-3.15,-3.55,Z));}
@@ -1221,7 +1357,7 @@ function draw(Z,rm,th,nt,sun,dt,shift,op){
 }
 // where a point of the painted world lands on screen, in CSS pixels (null when the pictures are hidden)
 function proj(p){if(!on||cvs.style.opacity<.3)return null;S(p[0],p[1],p[2]);return [P[0]/DPR,P[1]/DPR];}
-return {draw,resize,prepare,proj,source,count:CITYD.bl.length};
+return {draw,resize,prepare,proj,source,count:CITYD.bl.length,get ready(){return ready;}};
 })();
 INFO.city.facts[5]=['Buildings drawn','About '+(Math.round(P2.count/100)*100).toLocaleString('en-GB')];
 
@@ -1386,8 +1522,8 @@ const nav=document.getElementById('index');
 });
 {const bt=document.createElement('button');bt.textContent='Asteroid belt';bt.dataset.id='belt';bt.onclick=()=>showInfo(INFO.belt,Math.log10(300)+ZM,.7);nav.insertBefore(bt,nav.children[6]);}
 const scaleNav=document.getElementById('scale');let curLv=-1;
-const NAV=[['Atom','Carbon, in your DNA',INFO.atom,-9.55],['DNA','2 nanometres wide',INFO.dna,-8.45],['Chromosome','One of your 46',INFO.chromosome,-6],['Cell','A white blood cell',INFO.cell,-4.6],['Blood vessel','Inside your hand',INFO.vessel,-3.65],
- ['You','1 of 8 billion',INFO.you,.55],['City',CITY.name,INFO.city,3.5],['Earth','12,742 km across',byId.earth,7.31],['Solar System','9 billion km across',null,9.08],['Milky Way','100,000 light-years',INFO.milkyway,12.27],
+const NAV=[['Atom','Carbon, in your DNA',INFO.atom,-9.55],['DNA','2 nanometres wide',INFO.dna,-8.45],['Chromosome','One of her 46',INFO.chromosome,-6],['Cell','A white blood cell',INFO.cell,-4.6],['Eye','Where it starts',INFO.eye,-1.25],['Blood vessel','In her eye',INFO.vessel,-3.65],
+ ['Her','1 of 8 billion',INFO.you,.4],['City',CITY.name,INFO.city,3.5],['Earth','12,742 km across',byId.earth,7.31],['Solar System','9 billion km across',null,9.08],['Milky Way','100,000 light-years',INFO.milkyway,12.27],
  ['Local Group','10 million light-years',INFO.localgroup,13.56],['Universe','93 billion light-years',INFO.universe,16.12],['Multiverse','Universes beyond ours',INFO.multiverse,16.84],['Proton','Full of universes',INFO.proton,17.64]];
 NAV.forEach(v=>{
   const bt=document.createElement('button'),sm=document.createElement('small');bt.textContent=v[0];sm.textContent=v[1];bt.appendChild(sm);
@@ -1413,15 +1549,16 @@ label('Electron clouds','Not orbits: where they might be',galC,12.55,13.1);
 label(CITY.country,'',cityW,-.85,.1);
 const O=new THREE.Vector3();
 label(CITY.name,'About 33 million people',[0,0,0],3.4,5,2);
-label('Connaught Place','Where you are standing',[-35,22,0],2,3.4,2);
-label('You','1 of 8 billion people',[-.8,.02,1.8],-.2,1.9,2);
-label('Blood vessel','Under the skin of your hand',[-120e-6,-50e-6,1.38],-2.65,-3.4,2);
-label('Red blood cells','No nucleus, no DNA',[-70e-6,20e-6,1.38],-3.15,-3.9,2);
-label('White blood cell','Its nucleus holds your DNA',[1.5e-6,-6.3e-6,1.38],-3.7,-4.9,2);
-label('Chromosome 1','The longest of your 46',[-3.5e-6,-.5e-6,1.38],-5.35,-6.1,2);
-label('Chromatin','DNA wound on protein spools',[0,-150e-9,1.38],-6.55,-7.3,2);
-label('Nucleosome','One spool, 11 nm',[32e-9,-14e-9,1.38],-7.35,-7.9,2);
-label('DNA','The double helix',[-2.2e-9,-1.6e-9,1.38],-8.2,-8.7,2);
+label('Connaught Place','Central Park, where she lies',[-60,40,0],2,3.4,2);
+label('Her','1 of 8 billion people',[-.04,.75,.2],.1,1.9,2);
+label('Her eye','Everything starts here',[-.0075,-.009,.2],-1.15,-.35,2);
+label('Blood vessel','In the white of her eye',[-120e-6,-50e-6,.2],-2.65,-3.4,2);
+label('Red blood cells','No nucleus, no DNA',[-70e-6,20e-6,.2],-3.15,-3.9,2);
+label('White blood cell','Its nucleus holds your DNA',[1.5e-6,-6.3e-6,.2],-3.7,-4.9,2);
+label('Chromosome 1','The longest of her 46',[-3.5e-6,-.5e-6,.2],-5.35,-6.1,2);
+label('Chromatin','DNA wound on protein spools',[0,-150e-9,.2],-6.55,-7.3,2);
+label('Nucleosome','One spool, 11 nm',[32e-9,-14e-9,.2],-7.35,-7.9,2);
+label('DNA','The double helix',[-2.2e-9,-1.6e-9,.2],-8.2,-8.7,2);
 label('Carbon atom','In your DNA',O,-8.9,-9.245,1);
 const hint=document.createElement('span');hint.className='hint';hint.textContent='Drag to orbit · scroll in to dive into Earth and into you, out past the universe · it loops forever';nav.appendChild(hint);
 const $=id=>document.getElementById(id);
@@ -1483,10 +1620,34 @@ function firstGesture(e){
   song.play().catch(()=>{});
 }
 addEventListener('pointerdown',firstGesture,true);addEventListener('keydown',firstGesture,true);
-addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet();});
-document.querySelectorAll('.time button').forEach(bt=>bt.onclick=()=>{
+addEventListener('keydown',e=>{if(e.key==='Escape'){if(JY.on)journey(false);else closeSheet();}});
+
+/* ---------- the journey, as in Cosmic Eye: from her eye out to the edge of everything, back in through her eye, down to an atom, and round again ---------- */
+const JY={on:false,dir:1,lap:0,hold:0,prevZ:0},Z_EYE=-1.25,Z_TOP=16.88,jBtn=$('jy');
+function jRate(Z,dir){ // decades of size per second: slower where there is most to see
+  let r=.34;r-=.16*ss(2.6,1.2,Z)*ss(-3.2,-2,Z);r-=.1*ss(5.6,6.6,Z)*ss(8.6,7.6,Z);if(dir>0)r-=.25*ss(15.9,16.6,Z);r-=.08*ss(-7.5,-8.8,Z);return Math.max(.07,r);}
+function journey(on){if(on===JY.on)return;JY.on=on;jBtn.setAttribute('aria-pressed',on);jBtn.textContent=on?'■ Stop':'▶ Journey';document.body.classList.toggle('journey',on);
+  if(!on)return;
+  const fade=$('fade');fade.classList.add('on');if(wantMusic&&!mBox.hidden)song.play().catch(()=>{});
+  setTimeout(()=>{if(!JY.on){fade.classList.remove('on');return;}closeSheet();focusOn(null);document.body.classList.remove('open');cam.gshift=cam.shift=0;
+    cam.R=cam.gR=Math.pow(10,Z_EYE-ZM);let t=Math.PI/2;t+=Math.round((cam.th-t)/6.2832)*6.2832;cam.th=cam.gth=t;cam.ph=cam.gph=.02;cam.off.set(0,0,0);
+    Object.assign(JY,{dir:1,lap:0,hold:3,prevZ:Z_EYE});fade.classList.remove('on');},reduce?0:480);}
+function stepJourney(dt){
+  if(!JY.on||cam.focus)return;const Z=Math.log10(cam.R)+ZM;
+  if(JY.dir<0&&JY.prevZ<Z_A+.6&&Z>Z_B-.6)JY.lap=1; // through the atom, out of a proton full of universes
+  JY.prevZ=Z;if(!P2.ready)return;
+  if(JY.hold>0){JY.hold-=dt;return;}
+  if(JY.dir>0&&Z>=Z_TOP){JY.dir=-1;JY.hold=4;return;}
+  if(JY.dir<0&&JY.lap&&Z<=Z_EYE&&Z>Z_EYE-1){JY.dir=1;JY.lap=0;JY.hold=4;return;}
+  cam.R*=Math.pow(10,JY.dir*jRate(Z,JY.dir)*dt);cam.gR=cam.R;}
+jBtn.onclick=()=>journey(!JY.on);
+// any hand on the controls takes over from the journey
+['pointerdown','wheel'].forEach(t=>canvas.addEventListener(t,()=>journey(false),{passive:true}));
+document.querySelectorAll('.scale,.index').forEach(n=>n.addEventListener('click',()=>journey(false),true));
+if(location.hash==='#journey')setTimeout(()=>journey(true),1200);
+document.querySelectorAll('.time button[data-rate]').forEach(bt=>bt.onclick=()=>{
   rate=+bt.dataset.rate;if(rate===1)simTime=Date.now();
-  document.querySelectorAll('.time button').forEach(o=>o.setAttribute('aria-pressed',o===bt));
+  document.querySelectorAll('.time button[data-rate]').forEach(o=>o.setAttribute('aria-pressed',o===bt));
 });
 const dateEl=$('date');let lastDate='';
 function showDate(){const d=new Date(simTime);if(isNaN(d))return;
@@ -1540,10 +1701,11 @@ function fmtLen(m){const LY=9.4607e15;
   const ly=m/LY;if(ly<1e6)return nice(ly)+' light-years';if(ly<1e9)return nice(ly/1e6)+' million light-years';return nice(ly/1e9)+' billion light-years';}
 const QUOTES=[[8.05,8.95,['Look again at that dot. That’s here. That’s home. That’s us.'],'Carl Sagan, Pale Blue Dot, 1994'],
  [16.55,17.2,['We are this small.','And you still worry what others say about you?'],'']];
-let hudTxt='',qIdx=-1,hudSrc='',quoteOp=0;
+let hudTxt='',qIdx=-1,hudSrc='',quoteOp=0,hudPow='';
 function hud(Z,L){
   const t=cam.focus?undefined:trueLog(Z,L);$('hud').style.opacity=cam.focus?0:1;
   if(t!==undefined){const m=t===null?null:Math.pow(10,t),y=m===null?'':m>=1.7?'≈ '+big(m/1.7)+' of you, head to toe':'You are '+big(1.7/m)+' times bigger';
+    const pw=t===null?'10<sup>?</sup>':'10<sup>'+(Math.round(t)<0?'−':'')+Math.abs(Math.round(t))+'</sup><small>m</small>';if(pw!==hudPow){hudPow=pw;$('hud-pow').innerHTML=pw;}
     const txt=m===null?'Beyond measure':fmtLen(m)+' tall';if(txt+y!==hudTxt){hudTxt=txt+y;$('hud-w').textContent=txt;$('hud-you').textContent=m===null?'Nobody knows if this is real':y;}}
   let op=0,qi=-1;if(!cam.focus)QUOTES.forEach((q,i)=>{const o=ss(q[0],q[0]+.3,Z)*(1-ss(q[1]-.3,q[1],Z));if(o>op){op=o;qi=i;}});
   if(qi!==qIdx&&qi>=0){qIdx=qi;const q=QUOTES[qi],el=$('quote-in');el.textContent='';q[2].forEach(t=>{const p=document.createElement('p');p.textContent=t;el.appendChild(p);});
@@ -1568,6 +1730,7 @@ function frame(now){
   ATOM.t+=dt;if(ATOM.t>.09){ATOM.t=0;ATOM.flash.forEach((_,e)=>{const l=ATOM.idx[e>>1];ATOM.flash[e]=l[Math.random()*l.length|0];});}
   cityFrame();
   const k=reduce?1:1-Math.exp(-dt*3.2);
+  stepJourney(dt);
   // gliding down, the camera turns to look straight down: a satellite, a drone, then a microscope; past the atom it is free again
   const Z0=Math.log10(cam.R)+ZM;
   if(!cam.focus&&!ptrs.size){const s=Math.min(1,dt*1.4);
@@ -1596,7 +1759,7 @@ function frame(now){
   [camera,lifeCam].forEach(c=>{c.aspect=w/h;if(Math.abs(cam.shift)>.5)c.setViewOffset(w,h,cam.shift,0,w,h);else c.clearViewOffset();});
   camera.near=Math.max(Math.min(.1,cam.R*.01),cam.R*.01);camera.far=Math.max(6000,cam.R*80);
   camera.updateProjectionMatrix();
-  // the life scene's camera: same angles, in metres, around the back of your hand
+  // the life scene's camera: same angles, in metres, around her eye
   const fl=cam.focus?0:1-ss(4.95,5.55,Z);
   lifeCam.position.copy(vOff).multiplyScalar(Rm);lifeCam.up.set(0,1,0);lifeCam.lookAt(0,0,0);
   lifeCam.near=Rm*.01;lifeCam.far=Rm*400;lifeCam.updateProjectionMatrix();

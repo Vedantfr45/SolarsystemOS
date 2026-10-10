@@ -8,12 +8,12 @@ The 3D model is "Voyager Probe (B)" from [NASA 3D Resources](https://github.com/
 
 ## The endless zoom
 
-The whole thing is one loop, centred on you. Scroll in on Earth and the camera turns to look straight down, and from there every scale is painted the way a real lens would show it rather than modelled in 3D:
+Inspired by Danail Obreschkow's [Cosmic Eye](https://www.youtube.com/watch?v=8Are9dDbW24). The whole thing is one loop, centred on the eye of a woman lying on the grass in Connaught Place. Press **▶ Journey** (or open the page with `#journey`) for one continuous zoom like the film: from her eye out to the universe, back in through her eye, down to an atom and round again, with the scale shown in powers of ten. Or scroll it yourself: zoom in on Earth and the camera turns to look straight down, and from there every scale is painted the way a real lens would show it rather than modelled in 3D:
 
 - **Satellite photo** of New Delhi, with the Yamuna, the Ridge, the ring roads and the airport, lit orange at night.
-- **Drone shot** of Connaught Place, its rings of white colonnades, traffic driving on the left, and you on the plaza among other people, their shadows falling away from the real Sun.
-- **Your hand**, held out, then its skin under a **dermatoscope**.
-- A blood vessel and a white blood cell under a **light microscope**, stained as in a blood test.
+- **Drone shot** of Connaught Place, its rings of white colonnades, traffic driving on the left, and her on the lawn of Central Park among other people, their shadows falling away from the real Sun.
+- **Her face and eye** through a **macro lens**, then the white of her eye under a **slit-lamp microscope**, down to one of its red vessels.
+- That blood vessel and a white blood cell under a **light microscope**, stained as in a blood test.
 - All 46 chromosomes under a **fluorescence microscope** (a spectral karyotype).
 - Chromatin under an **electron microscope**: DNA wound on nucleosome spools.
 - DNA under an **atomic force microscope**: a height map of the double helix, its grooves and base pairs, then single atoms.
