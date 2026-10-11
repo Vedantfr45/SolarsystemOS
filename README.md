@@ -14,7 +14,7 @@ Everything in the loop is drawn in code. Inspired by Charles and Ray Eames' *Pow
 
 ## Zoom slider and words on the way
 
-The page opens on a single proton and invites you to zoom out. Scroll, pinch, or use the slider on the right: drag its knob, or hold **Out** / **In** if you have no mouse wheel. On the way out, Carl Sagan's Pale Blue Dot line appears at the bottom as Earth shrinks to a dot in the Solar System, with a couple more quotes further out, and at the multiverse a title card: "Look how small we are."
+The page opens on a single proton and invites you to zoom out. Scroll, pinch, or use the slider on the right: drag its knob, or hold **Out** / **In** if you have no mouse wheel. On the way out, Carl Sagan's Pale Blue Dot line appears at the bottom as Earth shrinks to a dot in the Solar System, with a couple more quotes further out, and at the multiverse, also at the bottom: "Look how small we are." The **Quotes on/off** button next to the music hides all of these and keeps only the place names; the choice is remembered.
 
 ## Music
 
