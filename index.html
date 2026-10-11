@@ -102,9 +102,10 @@ body.open .zbar{opacity:0;pointer-events:none}
 .zbar button:hover,.zbar button:active{color:var(--ink);border-color:var(--ink)}
 .ztrack{position:relative;flex:1;width:44px;cursor:grab;touch-action:none}
 .ztrack::before{content:"";position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line)}
-.ztrack i{position:absolute;left:50%;width:9px;height:1px;margin-left:-4px;background:var(--dim);opacity:.6}
-.zknob{position:absolute;left:50%;top:0;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:1px solid var(--sun);background:rgba(255,170,60,.18);box-shadow:0 0 14px rgba(255,170,60,.35);pointer-events:none}
+.ztrack i{position:absolute;left:50%;top:50%;width:13px;height:1px;margin-left:-6px;background:var(--dim);opacity:.7}
+.zknob{position:absolute;left:50%;top:50%;transition:top .35s cubic-bezier(.3,1.5,.5,1);width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:1px solid var(--sun);background:rgba(255,170,60,.18);box-shadow:0 0 14px rgba(255,170,60,.35);pointer-events:none}
 .ztrack.drag{cursor:grabbing}
+.ztrack.drag .zknob{transition:none}
 /* words on the way: a caption at the bottom, a title card in the middle, and the first hint */
 .cap{position:fixed;left:50%;bottom:calc(112px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:max-content;max-width:min(720px,calc(100vw - 120px));padding:14px 24px;border-radius:14px;background:rgba(4,5,10,.78);border:1px solid rgba(255,255,255,.08);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);text-align:center;pointer-events:none;opacity:0}
 .cap p{margin:0;font-family:var(--display);font-style:italic;font-size:clamp(17px,2.2vw,24px);line-height:1.25;color:#f4f1ea;text-wrap:balance}
@@ -186,7 +187,7 @@ body.open .zbar{opacity:0;pointer-events:none}
 <audio id="song" src="assets/music/Purpose_Is_Glorious_Loki_S2.mp3" loop preload="auto"></audio>
 <div class="zbar" id="zbar" role="group" aria-label="Zoom">
   <button id="z-out" aria-label="Zoom out (hold)">Out</button>
-  <div class="ztrack" id="ztrack" role="slider" tabindex="0" aria-label="Zoom level, from inside the Sun to beyond the universe" aria-orientation="vertical"><div class="zknob" id="zknob"></div></div>
+  <div class="ztrack" id="ztrack" role="slider" tabindex="0" aria-label="Zoom: drag up to zoom out, down to zoom in. Springs back to the middle." aria-orientation="vertical" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0"><div class="zknob" id="zknob"></div></div>
   <button id="z-in" aria-label="Zoom in (hold)">In</button>
 </div>
 <div class="cap" id="cap" aria-hidden="true"><p id="cap-p"></p><small id="cap-s"></small></div>
@@ -870,12 +871,17 @@ canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.0
 
 /* ---------- start ---------- */
 /* ---------- the zoom slider: one turn of the loop, top is out, bottom is in ---------- */
-const L_MIN=Math.log10(R_IN),ztrack=$('ztrack'),zknob=$('zknob');let zHold=0,zDrag=false;
-[1.5e2,4.2e2,6.5e5,1.25e7,4.6e9,2.4e10,1.5e11,7e12,6e13].forEach(r=>{const i=document.createElement('i');i.style.top=((L_OUT-Math.log10(r))/(L_OUT-L_MIN)*100).toFixed(1)+'%';ztrack.appendChild(i);});
-function zSet(y){const b=ztrack.getBoundingClientRect(),t=Math.max(0,Math.min(1,(y-b.top)/b.height));if(cam.focus)focusOn(null);cam.gR=Math.pow(10,L_OUT-t*(L_OUT-L_MIN)*.9999);}
-ztrack.addEventListener('pointerdown',e=>{zDrag=true;ztrack.setPointerCapture(e.pointerId);ztrack.classList.add('drag');zSet(e.clientY);e.preventDefault();});
+// the slider is a spring: the knob rests in the middle, pulling it up zooms out and down zooms in,
+// faster the further it goes, and it never runs out because the zoom loops; let go and it springs back
+const ztrack=$('ztrack'),zknob=$('zknob');let zHold=0,zJog=0,zDrag=false;
+ztrack.appendChild(document.createElement('i'));
+function zSet(y){const b=ztrack.getBoundingClientRect(),o=Math.max(-1,Math.min(1,(y-b.top-b.height/2)/(b.height/2)));
+  zknob.style.top=(50+o*50).toFixed(2)+'%';ztrack.setAttribute('aria-valuenow',Math.round(-o*100));
+  zJog=Math.abs(o)<.06?0:-Math.sign(o)*Math.pow(Math.abs(o),1.5)*2.4;}
+function zRelease(){if(zJog&&!cam.focus)cam.gR=cam.R*Math.pow(cam.gR/cam.R,.3);zDrag=false;zJog=0;ztrack.classList.remove('drag');zknob.style.top='50%';ztrack.setAttribute('aria-valuenow',0);}
+ztrack.addEventListener('pointerdown',e=>{zDrag=true;if(cam.focus)focusOn(null);ztrack.setPointerCapture(e.pointerId);ztrack.classList.add('drag');zSet(e.clientY);e.preventDefault();});
 ztrack.addEventListener('pointermove',e=>{if(zDrag)zSet(e.clientY);});
-['pointerup','pointercancel'].forEach(t=>ztrack.addEventListener(t,()=>{zDrag=false;ztrack.classList.remove('drag');}));
+['pointerup','pointercancel','lostpointercapture'].forEach(t=>ztrack.addEventListener(t,zRelease));
 ztrack.addEventListener('keydown',e=>{const d={ArrowUp:1,ArrowDown:-1,PageUp:3,PageDown:-3}[e.key];if(d){e.preventDefault();if(cam.focus)focusOn(null);zoom(Math.pow(10,d*.25));}});
 [['z-out',1],['z-in',-1]].forEach(([id,d])=>{const b=$(id);
   b.addEventListener('pointerdown',e=>{e.preventDefault();if(cam.focus)focusOn(null);zHold=d;b.setPointerCapture(e.pointerId);});
@@ -899,7 +905,6 @@ function words(L){
   capEl.style.opacity=op.toFixed(3);
   cardEl.style.opacity=(hide?0:ss(CARD[0],CARD[0]+.15,L)*(1-ss(CARD[1]-.15,CARD[1],L))).toFixed(3);
   if(introOn&&Math.abs(L-L_START)>.25){introOn=false;intro.classList.add('gone');}
-  zknob.style.top=((L_OUT-L)/(L_OUT-L_MIN)*100).toFixed(2)+'%';ztrack.setAttribute('aria-valuenow',L.toFixed(2));
 }
 let last=performance.now();
 function frame(now){
@@ -909,7 +914,7 @@ function frame(now){
   if(simTime>2524608000000||simTime<-5364662400000){simTime=Date.now();}
   place();showDate();if(cam.R<4000)moveBelt();
   BODIES.forEach(b=>{b.mesh.rotation.y+=dt*b.spin*.4;if(b.clouds)b.clouds.rotation.y+=dt*.025;});
-  if(zHold&&!cam.focus)cam.gR=Math.min(cam.R*1e3,Math.max(cam.R*1e-3,cam.gR*Math.pow(10,zHold*dt*1.4)));
+  const zr=zHold*1.4||zJog;if(zr&&!cam.focus)cam.gR=Math.min(cam.R*1e3,Math.max(cam.R*1e-3,cam.gR*Math.pow(10,zr*dt)));
   const k=reduce?1:1-Math.exp(-dt*3.2);
   cam.th+=(cam.gth-cam.th)*Math.min(1,k*1.6);
   cam.ph+=(cam.gph-cam.ph)*Math.min(1,k*1.6);cam.R=Math.exp(Math.log(cam.R)+(Math.log(cam.gR)-Math.log(cam.R))*k);cam.shift+=(cam.gshift-cam.shift)*k;
