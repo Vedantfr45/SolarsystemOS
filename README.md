@@ -12,6 +12,10 @@ Scroll out past the cosmic web and other universes appear around ours. Keep goin
 
 Everything in the loop is drawn in code. Inspired by Charles and Ray Eames' *Powers of Ten* (1977), the closing shot of *Men in Black* (1997) and Ant-Man's Quantum Realm. The other universes are imagined; the proton, atom and Sun facts are real.
 
+## Zoom slider and words on the way
+
+The page opens on a single proton and invites you to zoom out. Scroll, pinch, or use the slider on the right: drag its knob, or hold **Out** / **In** if you have no mouse wheel. On the way out, Carl Sagan's Pale Blue Dot line appears at the bottom as Earth shrinks to a dot in the Solar System, with a couple more quotes further out, and at the multiverse a title card: "Look how small we are."
+
 ## Music
 
 "Purpose Is Glorious" by Natalie Holt, from the Loki Season 2 score (Marvel Studios / Hollywood Records), credited on screen with a play/pause button. Browsers block autoplay, so it starts on the first tap or key press. The track is copyrighted and not in the repo; see [assets/music/README.md](assets/music/README.md).
