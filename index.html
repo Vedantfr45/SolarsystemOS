@@ -436,13 +436,28 @@ const gs=()=>Math.random()+Math.random()+Math.random()-1.5;
     belt.a[i]=a;belt.t[i]=Math.random()*6.2832;belt.i[i]=Math.abs(gs())*.16;belt.o[i]=Math.random()*6.2832;
     const b=.45+Math.random()*.55;col[i*3]=b;col[i*3+1]=b*.9;col[i*3+2]=b*.78;}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(BN*3),3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
-  belt.pts=new THREE.Points(g,new THREE.PointsMaterial({size:.8,vertexColors:true,sizeAttenuation:true,transparent:true}));belt.pts.frustumCulled=false;scene.add(belt.pts);
+  // far away each asteroid is a small round dot of fixed pixel size, so the dots never swell into squares near the camera
+  const dot=glowTex([[0,'rgba(255,255,255,1)'],[.45,'rgba(255,255,255,.9)'],[1,'rgba(255,255,255,0)']]);
+  belt.pts=new THREE.Points(g,new THREE.PointsMaterial({size:1.8,map:dot,vertexColors:true,sizeAttenuation:false,transparent:true,depthWrite:false}));belt.pts.frustumCulled=false;scene.add(belt.pts);
+  // up close they are lumpy, sunlit rocks, each with its own shape and slow tumble
+  const rg=new THREE.IcosahedronGeometry(1,1),rp=rg.attributes.position;
+  for(let i=0;i<rp.count;i++){const x=rp.getX(i),y=rp.getY(i),z=rp.getZ(i),k=.7+.5*vn(x*1.7+4,y*1.7,z*1.7)+.2*vn(x*4,y*4+9,z*4);rp.setXYZ(i,x*k,y*k,z*k);}
+  rg.computeVertexNormals();
+  belt.rocks=new THREE.InstancedMesh(rg,new THREE.MeshStandardMaterial({color:0x9a8e80,roughness:1,metalness:0,flatShading:true,transparent:true}),BN);
+  belt.rocks.frustumCulled=false;belt.sc=new Float32Array(BN*3);belt.rx=new Float32Array(BN*3);const c=new THREE.Color();
+  for(let i=0;i<BN;i++){const r=.06+Math.pow(Math.random(),3)*.4;belt.sc[3*i]=r;belt.sc[3*i+1]=r*(.55+Math.random()*.45);belt.sc[3*i+2]=r*(.6+Math.random()*.4);
+    belt.rx[3*i]=Math.random()*6.3;belt.rx[3*i+1]=Math.random()*6.3;belt.rx[3*i+2]=.2+Math.random();
+    c.setRGB(col[3*i],col[3*i+1],col[3*i+2]);belt.rocks.setColorAt(i,c);}
+  scene.add(belt.rocks);
 })();
+const rock=new THREE.Object3D();
 function moveBelt(){
-  const yr=(simTime/86400000+2440587.5-2451545)/365.25,p=belt.pts.geometry.attributes.position,q=[0,0,0];
+  const yr=(simTime/86400000+2440587.5-2451545)/365.25,p=belt.pts.geometry.attributes.position,q=[0,0,0],spin=performance.now()/1000;
   for(let i=0;i<BN;i++){const a=belt.a[i],th=belt.t[i]+6.2832*yr/Math.pow(a,1.5);
-    q[0]=a*Math.cos(th);q[1]=a*Math.sin(th);q[2]=a*Math.sin(belt.i[i])*Math.sin(th-belt.o[i]);toScene(q,tmpB);p.setXYZ(i,tmpB.x,tmpB.y,tmpB.z);}
-  p.needsUpdate=true;
+    q[0]=a*Math.cos(th);q[1]=a*Math.sin(th);q[2]=a*Math.sin(belt.i[i])*Math.sin(th-belt.o[i]);toScene(q,tmpB);p.setXYZ(i,tmpB.x,tmpB.y,tmpB.z);
+    const w=belt.rx[3*i+2]*spin*.3;rock.position.copy(tmpB);rock.rotation.set(belt.rx[3*i]+w,belt.rx[3*i+1]+w*.7,0);
+    rock.scale.set(belt.sc[3*i],belt.sc[3*i+1],belt.sc[3*i+2]);rock.updateMatrix();belt.rocks.setMatrixAt(i,rock.matrix);}
+  p.needsUpdate=true;belt.rocks.instanceMatrix.needsUpdate=true;
 }
 const tmpB=new THREE.Vector3();
 
@@ -859,7 +874,7 @@ function live(force){
 $('close').onclick=closeSheet;
 
 /* ---------- music ---------- */
-// Browsers only allow sound after a gesture, so it starts on the first tap or key press. The file is kept out of git.
+// Browsers only allow sound after a gesture, so it starts on the first tap or key press.
 const song=$('song'),mBox=$('music'),mBtn=$('m-play');let wantMusic=true;
 song.volume=.55;
 const noSong=()=>{mBox.hidden=true;};
@@ -977,7 +992,7 @@ function frame(now){
   const fi=cam.focus?1:ss(1.2,1.65,L); // the planets fall away as you dive into the Sun, so both ends of the loop match
   const near=L<9; // the Solar System's tiny sprites turn to noise this far out
   BODIES.forEach(b=>{if(b.id!=='sun')b.group.scale.setScalar(Math.max(fi,.001));b.group.visible=near&&(b.id==='sun'||fi>.01);if(b.orbit)b.orbit.material.opacity=.22*fi;if(b.trail)b.trail.material.opacity=fi;});
-  belt.pts.material.opacity=fi;if(COMET.group){COMET.group.visible=COMET.path.visible=near;COMET.group.scale.setScalar(Math.max(fi,.001));COMET.path.material.opacity=(cam.focus===COMET?.4:.12)*fi;COMET.tail.material.opacity=COMET.act;COMET.coma.material.opacity=.25+.75*COMET.act;}PROBES.forEach(p=>{if(p.path){p.path.material.opacity*=fi;if(!near)p.group.visible=p.path.visible=false;}});
+  belt.pts.material.opacity=belt.rocks.material.opacity=fi;if(COMET.group){COMET.group.visible=COMET.path.visible=near;COMET.group.scale.setScalar(Math.max(fi,.001));COMET.path.material.opacity=(cam.focus===COMET?.4:.12)*fi;COMET.tail.material.opacity=COMET.act;COMET.coma.material.opacity=.25+.75*COMET.act;}PROBES.forEach(p=>{if(p.path){p.path.material.opacity*=fi;if(!near)p.group.visible=p.path.visible=false;}});
   updateRealm(L,dt);
   sky.visible=stars.visible=fs>.01;sky.position.copy(camera.position);sky.scale.setScalar(camera.far*.4);
   stars.position.copy(camera.position);stars.scale.setScalar(camera.far*.4/2600);
@@ -985,7 +1000,7 @@ function frame(now){
   milky.visible=fm>.01;const dim=r=>Math.max(.03,Math.min(1,3.2*r/cam.R));milky.material.opacity=fm*dim(RG);
   others.forEach(g=>{g.visible=fo>.01;g.material.opacity=fo*dim(g.userData.R);g.userData.halo.material.opacity=.22*fo;});
   web.visible=fw>.01;web.material.opacity=.75*fw;
-  belt.pts.visible=L<3.6&&fi>.01;
+  belt.pts.visible=belt.rocks.visible=L<3.6&&fi>.01;
   const lv=L<3.9?0:L<6.4?1:L<8.4?2:L<9.9?3:L<10.65?4:L<11.45?5:L<13.3?6:7;if(lv!==curLv){curLv=lv;[...scaleNav.children].forEach((n,i)=>n.classList.toggle('on',i===lv));}
   labels.forEach(o=>{const on=L>o.lo&&L<o.hi&&!cam.focus;tmp.copy(o.p).project(camera);
     if(on&&tmp.z<1&&tmp.z>-1){o.el.style.transform='translate('+((tmp.x+1)/2*w).toFixed(1)+'px,'+((1-tmp.y)/2*h-8).toFixed(1)+'px)';o.el.style.opacity=1;}else o.el.style.opacity=0;});
