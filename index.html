@@ -303,6 +303,13 @@ const PROBES=[
   facts:[['Launched','20 Aug 1977'],['Rocket','Titan IIIE-Centaur'],['Length','13 m boom, tip to body'],['Dish','3.7 m across'],['Mass','722 kg'],['Speed','15.4 km/s from the Sun'],['Flybys','Jupiter, Saturn, Uranus, Neptune'],['Left the heliosphere','5 Nov 2018, 119 AU']]}
 ];
 PROBES.forEach(p=>byId[p.id]=p);
+// 1P/Halley, JPL Small-Body Database osculating elements (ecliptic J2000); perihelion 1986 Feb 5.9
+const COMET={id:'halley',name:'Halley’s Comet',kind:'Periodic comet · 1P/Halley',r:3,
+ a:17.834,e:.96714,I:162.263*D2R,O:58.420*D2R,wb:(111.332+58.420)*D2R,tp:Date.UTC(1986,1,5,21,29),P:75.32*365.25*864e5,
+ text:'A mountain of ice and dust the size of a city, falling in from beyond Neptune once a lifetime. Near the Sun it boils off gas and dust into a tail millions of kilometres long, always pointing away from the Sun. It orbits backwards compared with the planets.',
+ facts:[['Nucleus','15 × 8 km'],['Orbit','75–76 years'],['Closest to Sun','0.59 AU, inside Venus'],['Farthest','35 AU, past Neptune'],['Last seen','Feb 1986'],['Next visit','Jul 2061'],['First recorded','240 BC'],['Meteor showers','Eta Aquariids, Orionids']],
+ note:'Position comes from Halley’s real orbital elements and Kepler’s laws, ignoring the small pulls of the planets. The tail is drawn from the Sun’s direction and only grows inside about 5 AU, as the real one does; its length and the comet’s size are exaggerated so they show on this map.'};
+byId.halley=COMET;
 
 /* ---------- ephemeris ---------- */
 function centuries(ms){return (ms/86400000+2440587.5-2451545)/36525;}
@@ -652,6 +659,39 @@ function orbitLine(id,T){
   const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0xece7dc,transparent:true,opacity:.22}));
   l.visible=false;scene.add(l);byId[id].orbit=l;byId[id].trail=trail(TN);scene.add(byId[id].trail);return l;
 }
+function cometAU(c,t){ // Kepler's equation for a very eccentric orbit
+  let M=(2*Math.PI*(t-c.tp)/c.P)%(2*Math.PI);if(M>Math.PI)M-=2*Math.PI;if(M<-Math.PI)M+=2*Math.PI;
+  let E=M+.85*c.e*Math.sign(Math.sin(M));for(let i=0;i<30;i++)E-=(E-c.e*Math.sin(E)-M)/(1-c.e*Math.cos(E));
+  return fromE(c,E);
+}
+const CN=1400;
+function buildComet(c){
+  c.group=new THREE.Group();c.pos=c.group.position;scene.add(c.group);
+  const glow=a=>glowTex([[0,'rgba(255,255,255,'+a+')'],[.25,'rgba(190,225,255,'+a*.55+')'],[1,'rgba(150,200,255,0)']]);
+  c.coma=new THREE.Sprite(new THREE.SpriteMaterial({map:glow(1),transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));c.group.add(c.coma);
+  c.marker=new THREE.Sprite(new THREE.SpriteMaterial({map:glow(1),sizeAttenuation:false,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  c.marker.scale.set(.022,.022,1);c.group.add(c.marker);
+  c.hit=new THREE.Mesh(new THREE.SphereGeometry(2.6,12,8),new THREE.MeshBasicMaterial({visible:false}));c.hit.userData.b=c;c.group.add(c.hit);hits.push(c.hit);
+  // tail: each grain keeps a place along the tail and a sideways scatter that widens with distance from the head
+  c.tu=new Float32Array(CN);c.ts=new Float32Array(CN*2);const g=new THREE.BufferGeometry(),col=new Float32Array(CN*3);
+  for(let i=0;i<CN;i++){const u=Math.pow(Math.random(),1.6);c.tu[i]=u;c.ts[2*i]=gs()*.11;c.ts[2*i+1]=gs()*.11;
+    const f=(1-u)*(1-u)*.9+.08;col[3*i]=f*(.75+.25*(1-u));col[3*i+1]=f*.88;col[3*i+2]=f;}
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(CN*3),3));g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  c.tail=new THREE.Points(g,new THREE.PointsMaterial({size:.55,map:glow(1),vertexColors:true,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending}));
+  c.tail.frustumCulled=false;c.group.add(c.tail);
+  const pts=[],v=new THREE.Vector3();for(let i=0;i<=720;i++){toScene(fromE(c,i/720*2*Math.PI),v);pts.push(v.clone());}
+  c.path=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),new THREE.LineBasicMaterial({color:0x9cc8ff,transparent:true,opacity:.12,depthWrite:false}));scene.add(c.path);
+}
+const cd=new THREE.Vector3(),cx=new THREE.Vector3(),cy=new THREE.Vector3();
+function placeComet(c){
+  if(!c.group)return;const au=cometAU(c,simTime),r=Math.hypot(au[0],au[1],au[2]);AUpos[c.id]=au;toScene(au,c.pos);
+  const act=ss(5,.6,r),len=70*act; // the tail switches on inside about 5 AU and is longest at perihelion
+  cd.copy(c.pos).normalize();cx.set(0,1,0).cross(cd).normalize();cy.copy(cd).cross(cx);
+  const a=c.tail.geometry.attributes.position;
+  for(let i=0;i<CN;i++){const d=c.tu[i]*len,w=d+1;a.setXYZ(i,cd.x*d+(cx.x*c.ts[2*i]+cy.x*c.ts[2*i+1])*w,cd.y*d+(cx.y*c.ts[2*i]+cy.y*c.ts[2*i+1])*w,cd.z*d+(cx.z*c.ts[2*i]+cy.z*c.ts[2*i+1])*w);}
+  a.needsUpdate=true;c.act=act;c.coma.scale.setScalar(1+3.5*act);
+  const d=camera.position.distanceTo(c.pos);c.marker.material.opacity=ss(25,90,d);c.hit.scale.setScalar(Math.max(1,d*.012));
+}
 function radial(p,t){const r=p.rRef+p.kms*AUYR*(t-p.tRef)/YR;return [p.dir[0]*r,p.dir[1]*r,p.dir[2]*r];}
 function probeAU(p,t){
   const w=p.way;if(t<=w[0][0])return w[0][1].slice();
@@ -714,7 +754,7 @@ let simTime=Date.now(),rate=1;
 const AUpos={};let moonTrail=null;const tmp=new THREE.Vector3();
 function place(){
   const T=centuries(simTime);
-  placeProbes();
+  placeProbes();placeComet(COMET);
   for(const id in EL){const p=helio(id,T),b=byId[id];AUpos[id]=p;toScene(p,b.pos);
     if(b.trail){const a=b.trail.geometry.attributes.position,k=helio.k,E=helio.E;
       for(let i=0;i<=TN;i++){toScene(fromE(k,E-i/TN*SPAN),tmp);a.setXYZ(i,tmp.x,tmp.y,tmp.z);}a.needsUpdate=true;}}
@@ -751,6 +791,7 @@ const nav=document.getElementById('index');
   const bt=document.createElement('button');bt.textContent=byId[id].name;bt.dataset.id=id;bt.onclick=()=>focusOn(byId[id]);nav.appendChild(bt);
 });
 {const bt=document.createElement('button');bt.textContent='Asteroid belt';bt.dataset.id='belt';bt.onclick=()=>showInfo(INFO.belt,300,.7);nav.insertBefore(bt,nav.children[6]);}
+{const bt=document.createElement('button');bt.textContent='Halley’s Comet';bt.dataset.id='halley';bt.onclick=()=>focusOn(COMET);nav.insertBefore(bt,nav.querySelector('[data-id=voyager1]'));}
 const scaleNav=document.getElementById('scale');let curLv=-1;
 [['Solar System','9 billion km across',null,420],['Milky Way','100,000 light-years',INFO.milkyway,6.5e5],['Local Group','10 million light-years',INFO.localgroup,1.25e7],['Universe','93 billion light-years',INFO.universe,4.6e9],
  ['Multiverse','Universes beyond ours',INFO.multiverse,2.4e10],['Proton','Full of universes',INFO.proton,1.5e11],['Atom','Carbon, 0.3 nanometres',INFO.atom,7e12],['Inside the Sun','10⁵⁷ atoms, and home again',INFO.insun,6e13]].forEach(v=>{
@@ -936,7 +977,7 @@ function frame(now){
   const fi=cam.focus?1:ss(1.2,1.65,L); // the planets fall away as you dive into the Sun, so both ends of the loop match
   const near=L<9; // the Solar System's tiny sprites turn to noise this far out
   BODIES.forEach(b=>{if(b.id!=='sun')b.group.scale.setScalar(Math.max(fi,.001));b.group.visible=near&&(b.id==='sun'||fi>.01);if(b.orbit)b.orbit.material.opacity=.22*fi;if(b.trail)b.trail.material.opacity=fi;});
-  belt.pts.material.opacity=fi;PROBES.forEach(p=>{if(p.path){p.path.material.opacity*=fi;if(!near)p.group.visible=p.path.visible=false;}});
+  belt.pts.material.opacity=fi;if(COMET.group){COMET.group.visible=COMET.path.visible=near;COMET.group.scale.setScalar(Math.max(fi,.001));COMET.path.material.opacity=(cam.focus===COMET?.4:.12)*fi;COMET.tail.material.opacity=COMET.act;COMET.coma.material.opacity=.25+.75*COMET.act;}PROBES.forEach(p=>{if(p.path){p.path.material.opacity*=fi;if(!near)p.group.visible=p.path.visible=false;}});
   updateRealm(L,dt);
   sky.visible=stars.visible=fs>.01;sky.position.copy(camera.position);sky.scale.setScalar(camera.far*.4);
   stars.position.copy(camera.position);stars.scale.setScalar(camera.far*.4/2600);
@@ -955,8 +996,9 @@ function frame(now){
   requestAnimationFrame(frame);
 }
 setTimeout(()=>{
-  BODIES.forEach(build);buildBigSun();PROBES.forEach(buildProbe);nasaModel();
+  BODIES.forEach(build);buildBigSun();PROBES.forEach(buildProbe);buildComet(COMET);nasaModel();
   PROBES.forEach(p=>label(p.name,'Interstellar space',p.pos,2.2,3.9));
+  label(COMET.name,'Periodic comet',COMET.pos,2.2,3.9);
   const T=centuries(simTime);for(const id in EL)orbitLine(id,T);
   // Moon's path around Earth
   moonTrail=trail(96);{const a=moonTrail.geometry.attributes.position;for(let i=0;i<=96;i++){const t=i/96*4.4;a.setXYZ(i,Math.cos(t)*5.2,0,Math.sin(t)*5.2);}}
