@@ -19,3 +19,7 @@ The page opens on a single proton and invites you to zoom out. Scroll, pinch, or
 ## Music
 
 "Purpose Is Glorious" by Natalie Holt, from the Loki Season 2 score (Marvel Studios / Hollywood Records), credited on screen with a play/pause button. Browsers block autoplay, so it starts on the first tap or key press. The track is copyrighted and not in the repo; see [assets/music/README.md](assets/music/README.md).
+
+## The black hole at the centre of the galaxy
+
+Zoom out to the Milky Way and tap **Sagittarius A\*** at its centre (or the **Black hole** button at the bottom) to fly there. It is ray traced live in a shader: every pixel follows a light ray backwards through the curved space around the hole, so the far side of the disk arching over and under the shadow, the thin photon ring, the brighter side moving toward you, and the bent Milky Way behind it are all real effects, not painted on. Drag to orbit it and scroll to get closer. Drawn far larger and brighter than the real one.
