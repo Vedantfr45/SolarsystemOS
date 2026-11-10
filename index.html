@@ -49,6 +49,7 @@ body.open .time{opacity:0;pointer-events:none}
 .scale button.on{color:var(--sun);border-color:var(--sun)}
 .lab{position:fixed;left:0;top:0;pointer-events:none;white-space:nowrap;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink);padding-left:16px;text-shadow:0 0 8px var(--void),0 0 3px var(--void);transition:opacity .4s;opacity:0}
 .lab::before{content:"";position:absolute;left:-4px;top:50%;width:7px;height:7px;margin-top:-4px;border:1px solid var(--sun);border-radius:50%}
+.lab[style*="auto"]{cursor:pointer}
 .lab small{display:block;color:var(--sun);font-size:9px;letter-spacing:.1em}
 .hint{margin-left:auto;flex:none;color:var(--dim);font-size:10px;letter-spacing:.06em}
 
@@ -514,6 +515,78 @@ const RU=2e9,web=(function(){
 })();
 const galC=new THREE.Vector3();
 
+/* ---------- Sagittarius A*: the black hole at the centre of the galaxy ---------- */
+// Drawn by tracing a light ray backwards from the camera for every pixel through the curved space around a
+// non-spinning black hole (units: Schwarzschild radius = 1 scene unit). Rays that cross the disk pick up its glow,
+// rays that fall in stay black, and the rest show the real sky panorama, bent. The disk arching over and under
+// the shadow, the thin photon ring and the brighter approaching side all come out of the ray tracing itself.
+const BH={id:'sgra',name:'Sagittarius A*',kind:'Supermassive black hole',r:2.6,pos:galC,
+  text:'The dark heart of the Milky Way: four million Suns’ worth of mass in a ball that would fit inside Mercury’s orbit. Its gravity bends light so hard that you see the far side of its glowing disk arching over and under the shadow, and a thin ring of light that has looped around it.',
+  facts:[['Mass','4.3 million Suns'],['Event horizon','25 million km across'],['From the Sun','26,700 light-years'],['Disk speed','Up to half light speed'],['First image','Event Horizon Telescope, 2022'],['Nearest star S2','Orbits every 16 years']],
+  note:'Drawn by tracing light rays through the curved space around a black hole, so the lensed disk, the photon ring and the brighter side (the gas moving toward you) are real effects. The background is the same Milky Way panorama, bent by the hole. The real Sagittarius A* is mostly quiet with a faint disk; this one is lit up so you can see it, and drawn far larger than life.'};
+const bhMat=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
+  uniforms:{cam:{value:new THREE.Vector3()},view:{value:new THREE.Matrix4()},proj:{value:new THREE.Matrix4()},time:{value:0},skyB:{value:.4},
+    sky:{value:new THREE.CubeTextureLoader().load(['px','nx','py','ny','pz','nz'].map(f=>'sky_'+f+'.jpg'))},
+    // world direction to the sky box's own frame (it is turned by TILT and mirrored in x)
+    skyRot:{value:new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeScale(-1,1,1).multiply(new THREE.Matrix4().makeRotationX(-TILT)))}},
+  vertexShader:'varying vec2 vP;void main(){vP=position.xy;gl_Position=vec4(position.xy,0.,1.);}',
+  fragmentShader:`precision highp float;
+uniform vec3 cam;uniform mat4 view,proj;uniform float time,skyB;uniform samplerCube sky;uniform mat3 skyRot;varying vec2 vP;
+float hash(vec3 p){p=fract(p*.3183099+vec3(.1,.2,.3));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
+float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
+  return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
+             mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+float fbm(vec3 p){float s=0.,a=.5;for(int i=0;i<5;i++){s+=a*noise(p);p=p*2.03+vec3(1.7,9.2,3.1);a*=.5;}return s;}
+const float RIN=2.3,ROUT=19.,R0=60.;
+// the accretion disk where a ray crosses its plane: glow (rgb) and how much it hides what is behind (a)
+vec4 disk(vec3 q,vec3 v){
+  float r=length(q.xz);if(r<RIN-.4||r>ROUT)return vec4(0.);
+  float a=atan(q.z,q.x)-sqrt(.5/(r*r*r))*time*1.4; // each ring turns at its own Kepler speed
+  vec2 c=vec2(cos(a),sin(a));
+  float big=fbm(vec3(r*1.2,c*3.4));                         // clumps, lanes and wisps
+  float fine=fbm(vec3(r*6.,c*4.+vec2(4.,0.)));              // thin streaks drawn out along the orbit
+  float hair=noise(vec3(r*34.,c*1.5));                      // hair-fine striations
+  float m=clamp((fine-.3)*1.6+(big-.42)*2.6+(hair-.5)*.25+.4,0.,1.4);
+  float prof=smoothstep(RIN-.4,RIN+.9,r)*(1.-smoothstep(ROUT*(.18+.35*big),ROUT,r))*pow(RIN/r,.9); // ragged outer edge
+  float dens=prof*m;
+  vec3 u=sqrt(.5/r)*normalize(vec3(-q.z,0.,q.x));          // orbital velocity, as a fraction of light speed
+  float D=sqrt(1.-dot(u,u))/(1.+dot(u,normalize(v)))*sqrt(max(0.,1.-1./r)); // Doppler and gravitational shift
+  float heat=clamp(pow(RIN/r,.8)*1.15,0.,1.);
+  vec3 col=mix(vec3(.55,.33,.19),vec3(1.,.9,.77),heat);   // tan at the edge, cream near the hole
+  col*=mix(vec3(1.12,.82,.62),vec3(.96,1.,1.06),smoothstep(.55,1.35,D));
+  return vec4(col*dens*mix(1.,D*D*D,.75)*2.4,clamp(dens*1.5,0.,.96));
+}
+vec3 bend(vec3 p,vec3 d){ // the small bending still to come on the straight run out to infinity
+  float s=dot(p,d);vec3 o=p-s*d;float b=max(length(o),1e-4);
+  return normalize(d-o/b*(1.-s/sqrt(s*s+b*b))/b);
+}
+void main(){
+  vec4 pc=proj*vec4(vP,1.,1.);vec3 d=normalize((view*vec4(pc.xyz/pc.w,0.)).xyz),p=cam;
+  float pd=dot(p,d);
+  if(dot(p,p)>R0*R0){
+    float disc=pd*pd-dot(p,p)+R0*R0;
+    if(pd>0.||disc<0.){gl_FragColor=vec4(textureCube(sky,skyRot*bend(p,d)).rgb*skyB,1.);return;}
+    vec3 o=p-pd*d;float b=length(o);p+=d*(-pd-sqrt(disc));float s=dot(p,d);
+    d=normalize(d-o/b*(s/sqrt(s*s+b*b)-pd/sqrt(pd*pd+b*b))/b); // bending picked up on the way in
+  }
+  vec3 v=d,h=cross(p,v),acc=vec3(0.);float h2=dot(h,h),A=0.;bool out_=false;
+  for(int i=0;i<300;i++){
+    float r2=dot(p,p),r=sqrt(r2);
+    if(r<1.)break;
+    if(r>R0+.1&&dot(p,v)>0.){out_=true;break;}
+    if(A>.985)break;
+    float dt=clamp(.07*r,.02,4.);
+    vec3 a=-1.5*h2*p/(r2*r2*r),pn=p+v*dt+.5*a*dt*dt;     // exact Schwarzschild light paths in this form
+    float n2=dot(pn,pn);vec3 vn=v+.5*(a-1.5*h2*pn/(n2*n2*sqrt(n2)))*dt;
+    if(p.y*pn.y<0.){vec4 e=disk(mix(p,pn,p.y/(p.y-pn.y)),v);acc+=(1.-A)*e.rgb;A+=(1.-A)*e.a;}
+    p=pn;v=vn;
+  }
+  vec3 bg=out_?textureCube(sky,skyRot*bend(p,normalize(v))).rgb*skyB:vec3(0.);
+  gl_FragColor=vec4(1.-exp(-acc*1.5)+(1.-A)*bg,1.);
+}`});
+const bhQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),bhMat);bhQuad.frustumCulled=false;bhQuad.renderOrder=-1.5;bhQuad.visible=false;scene.add(bhQuad);
+let bhWas=false;
+
 /* ---------- beyond the universe: the loop ---------- */
 // Past the cosmic web: other bubble universes, all inside one proton, inside a carbon nucleus, inside an atom
 // drifting in the Sun's plasma, inside a Sun that is our Sun again. One turn is 13 powers of ten, so the camera
@@ -783,7 +856,7 @@ const target=new THREE.Vector3();
 function focusOn(b){
   const np=b?b.pos:new THREE.Vector3();
   cam.off.copy(target).sub(np);cam.focus=b;
-  if(b){cam.gR=b.id==='sun'?70:Math.max(b.r*(b.id==='saturn'?8:6.2),5);cam.gph=1.12;if(b.id!=='sun'){let t=Math.atan2(-b.pos.z,-b.pos.x)+.75;t+=Math.round((cam.th-t)/6.2832)*6.2832;cam.gth=t;}}else{cam.gR=420;cam.gph=1.02;}
+  if(b===BH){cam.gR=30;cam.gph=1.46;}else if(b){cam.gR=b.id==='sun'?70:Math.max(b.r*(b.id==='saturn'?8:6.2),5);cam.gph=1.12;if(b.id!=='sun'){let t=Math.atan2(-b.pos.z,-b.pos.x)+.75;t+=Math.round((cam.th-t)/6.2832)*6.2832;cam.gth=t;}}else{cam.gR=420;cam.gph=1.02;}
   document.body.classList.toggle('open',!!b);
   cam.gshift=b&&innerWidth>640?200:0;
   [...nav.children].forEach(n=>n.classList&&n.classList.toggle('on',!!b&&n.dataset.id===b.id));
@@ -806,6 +879,7 @@ const nav=document.getElementById('index');
   const bt=document.createElement('button');bt.textContent=byId[id].name;bt.dataset.id=id;bt.onclick=()=>focusOn(byId[id]);nav.appendChild(bt);
 });
 {const bt=document.createElement('button');bt.textContent='Asteroid belt';bt.dataset.id='belt';bt.onclick=()=>showInfo(INFO.belt,300,.7);nav.insertBefore(bt,nav.children[6]);}
+{const bt=document.createElement('button');bt.textContent='Black hole';bt.dataset.id='sgra';bt.onclick=()=>focusOn(BH);nav.appendChild(bt);}
 {const bt=document.createElement('button');bt.textContent='Halley’s Comet';bt.dataset.id='halley';bt.onclick=()=>focusOn(COMET);nav.insertBefore(bt,nav.querySelector('[data-id=voyager1]'));}
 const scaleNav=document.getElementById('scale');let curLv=-1;
 [['Solar System','9 billion km across',null,420],['Milky Way','100,000 light-years',INFO.milkyway,6.5e5],['Local Group','10 million light-years',INFO.localgroup,1.25e7],['Universe','93 billion light-years',INFO.universe,4.6e9],
@@ -813,10 +887,10 @@ const scaleNav=document.getElementById('scale');let curLv=-1;
   const bt=document.createElement('button'),sm=document.createElement('small');bt.textContent=v[0];sm.textContent=v[1];bt.appendChild(sm);
   bt.onclick=()=>{if(v[2])showInfo(v[2],v[3],.85);else{focusOn(null);goTo(v[3]);}};scaleNav.appendChild(bt);});
 function label(text,sub,p,lo,hi){const el=document.createElement('div');el.className='lab';el.textContent=text;if(sub){const s=document.createElement('small');s.textContent=sub;el.appendChild(s);}
-  document.getElementById('labs').appendChild(el);labels.push({el,p,lo,hi});}
+  document.getElementById('labs').appendChild(el);labels.push({el,p,lo,hi});return el;}
 scene.updateMatrixWorld(true);cosmos.localToWorld(galC.set(0,0,0));
 label('Solar System','You are here',new THREE.Vector3(),4.6,6.3);
-label('Galactic centre','',galC,4.9,6.0);
+label('Sagittarius A*','Black hole · tap to visit',galC,4.9,6.0).onclick=()=>focusOn(BH);
 label('Milky Way','You are here',galC,6.5,8.3);
 GAL.forEach((g,i)=>label(g[0],g[1],g[2].getWorldPosition(new THREE.Vector3()),i<2?6.6:5.7,i<2?8.3:6.6));
 label('Local Group','You are here',galC,8.6,9.6);
@@ -865,6 +939,7 @@ function live(force){
   if(b.id==='sun'){const d=Math.hypot(e[0],e[1],e[2]);h+=row('From Earth',d.toFixed(4)+' AU')+row('Light reaches Earth in',(d*499.005/60).toFixed(2)+' min');}
   else if(b.id==='moon'){const m=moonDir(simTime);const el=((Math.atan2(m[1],m[0])-Math.atan2(-e[1],-e[0]))/D2R%360+360)%360;
     h+=row('Illuminated',(50*(1-Math.cos(el*D2R))).toFixed(0)+'%')+row('Phase',el<180?'Waxing':'Waning');}
+  else if(b===BH)h+=row('Its light left','26,700 years ago')+row('Shadow seen from Earth','50 micro-arcseconds')+row('Falling in','Nothing comes back out');
   else{const p=AUpos[b.id],d=Math.hypot(p[0],p[1],p[2]);
     h+=row('From the Sun',d.toFixed(3)+' AU')+row('',Math.round(d*AU_KM/1e5)/10+' million km')+row('Sunlight takes',(d*499.005/60).toFixed(1)+' min');
     if(b.id!=='earth')h+=row('From Earth',Math.hypot(p[0]-e[0],p[1]-e[1],p[2]-e[2]).toFixed(3)+' AU');
@@ -922,7 +997,7 @@ function up(e){const was=ptrs.size;ptrs.delete(e.pointerId);canvas.classList.rem
 canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
 canvas.addEventListener('pointerleave',()=>tip.classList.remove('show'));
 function zoom(f){if(!cam.focus){cam.gR=Math.max(cam.R*1e-6,Math.min(cam.R*1e6,cam.gR*f));return;} // no limits: the loop wraps
-  cam.gR=Math.max(cam.focus.r*1.9,Math.min(6e9,cam.gR*f));}
+  cam.gR=Math.max(cam.focus.r*1.9,Math.min(cam.focus===BH?1500:6e9,cam.gR*f));}
 canvas.addEventListener('wheel',e=>{e.preventDefault();zoom(Math.exp(e.deltaY*.0012*(1+2.2*ss(3,4.2,Math.log10(cam.gR)))));},{passive:false});
 
 /* ---------- start ---------- */
@@ -979,7 +1054,7 @@ function frame(now){
     while(cam.R<R_IN){cam.R*=LOOP;cam.gR*=LOOP;}
     while(cam.R>R_OUT){cam.R/=LOOP;cam.gR/=LOOP;}}
   const L=Math.log10(cam.R);
-  target.copy(cam.focus?cam.focus.pos:tmp.set(0,0,0)).add(cam.off).addScaledVector(galC,ss(4.2,5.3,L));
+  target.copy(cam.focus?cam.focus.pos:tmp.set(0,0,0)).add(cam.off).addScaledVector(galC,cam.focus?0:ss(4.2,5.3,L));
   const sp=Math.sin(cam.ph);
   camera.position.set(target.x+cam.R*sp*Math.cos(cam.th),target.y+cam.R*Math.cos(cam.ph),target.z+cam.R*sp*Math.sin(cam.th));
   camera.lookAt(target);
@@ -997,13 +1072,18 @@ function frame(now){
   sky.visible=stars.visible=fs>.01;sky.position.copy(camera.position);sky.scale.setScalar(camera.far*.4);
   stars.position.copy(camera.position);stars.scale.setScalar(camera.far*.4/2600);
   skyMats.forEach(m=>m.color.setScalar(m.userData.ok?.4*fs:0));stars.material.opacity=.75*fs;
+  // near the galactic centre the ray-traced black hole takes over the whole sky, so the flat sky and stars step aside
+  const bhOn=camera.position.distanceTo(galC)<5000;bhQuad.visible=bhOn;
+  if(bhOn){sky.visible=stars.visible=false;camera.updateMatrixWorld();const u=bhMat.uniforms;u.cam.value.copy(camera.position).sub(galC);
+    u.view.value.copy(camera.matrixWorld);u.proj.value.copy(camera.projectionMatrixInverse);u.time.value=now/1000;u.skyB.value=.4*fs;}
+  if(bhOn!==bhWas){bhWas=bhOn;renderer.setPixelRatio(Math.min(devicePixelRatio||1,bhOn?1.25:2));resize();} // a lighter load while tracing rays
   milky.visible=fm>.01;const dim=r=>Math.max(.03,Math.min(1,3.2*r/cam.R));milky.material.opacity=fm*dim(RG);
   others.forEach(g=>{g.visible=fo>.01;g.material.opacity=fo*dim(g.userData.R);g.userData.halo.material.opacity=.22*fo;});
   web.visible=fw>.01;web.material.opacity=.75*fw;
   belt.pts.visible=belt.rocks.visible=L<3.6&&fi>.01;
   const lv=L<3.9?0:L<6.4?1:L<8.4?2:L<9.9?3:L<10.65?4:L<11.45?5:L<13.3?6:7;if(lv!==curLv){curLv=lv;[...scaleNav.children].forEach((n,i)=>n.classList.toggle('on',i===lv));}
   labels.forEach(o=>{const on=L>o.lo&&L<o.hi&&!cam.focus;tmp.copy(o.p).project(camera);
-    if(on&&tmp.z<1&&tmp.z>-1){o.el.style.transform='translate('+((tmp.x+1)/2*w).toFixed(1)+'px,'+((1-tmp.y)/2*h-8).toFixed(1)+'px)';o.el.style.opacity=1;}else o.el.style.opacity=0;});
+    if(on&&tmp.z<1&&tmp.z>-1){o.el.style.transform='translate('+((tmp.x+1)/2*w).toFixed(1)+'px,'+((1-tmp.y)/2*h-8).toFixed(1)+'px)';o.el.style.opacity=1;if(o.el.onclick)o.el.style.pointerEvents='auto';}else{o.el.style.opacity=0;o.el.style.pointerEvents='none';}});
   if(L>3.5&&!cam.focus)tip.classList.remove('show');
   words(L);
   live(false);
