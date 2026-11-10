@@ -525,13 +525,20 @@ const BH={id:'sgra',name:'Sagittarius A*',kind:'Supermassive black hole',r:2.6,p
   facts:[['Mass','4.3 million Suns'],['Event horizon','25 million km across'],['From the Sun','26,700 light-years'],['Disk speed','Up to half light speed'],['First image','Event Horizon Telescope, 2022'],['Nearest star S2','Orbits every 16 years']],
   note:'Drawn by tracing light rays through the curved space around a black hole, so the lensed disk, the photon ring and the brighter side (the gas moving toward you) are real effects. The background is the same Milky Way panorama, bent by the hole. The real Sagittarius A* is mostly quiet with a faint disk; this one is lit up so you can see it, and drawn far larger than life.'};
 const bhMat=new THREE.ShaderMaterial({depthTest:false,depthWrite:false,
-  uniforms:{cam:{value:new THREE.Vector3()},view:{value:new THREE.Matrix4()},proj:{value:new THREE.Matrix4()},time:{value:0},skyB:{value:.4},
+  uniforms:{cam:{value:new THREE.Vector3()},view:{value:new THREE.Matrix4()},proj:{value:new THREE.Matrix4()},vp:{value:new THREE.Matrix4()},rot:{value:new THREE.Matrix3()},time:{value:0},skyB:{value:.4},mode:{value:0},fade:{value:1},cav:{value:75},scr:{value:null},
     sky:{value:new THREE.CubeTextureLoader().load(['px','nx','py','ny','pz','nz'].map(f=>'sky_'+f+'.jpg'))},
     // world direction to the sky box's own frame (it is turned by TILT and mirrored in x)
     skyRot:{value:new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeScale(-1,1,1).multiply(new THREE.Matrix4().makeRotationX(-TILT)))}},
   vertexShader:'varying vec2 vP;void main(){vP=position.xy;gl_Position=vec4(position.xy,0.,1.);}',
   fragmentShader:`precision highp float;
-uniform vec3 cam;uniform mat4 view,proj;uniform float time,skyB;uniform samplerCube sky;uniform mat3 skyRot;varying vec2 vP;
+uniform vec3 cam;uniform mat3 rot;uniform mat4 view,proj,vp;uniform float time,skyB,mode,fade,cav;uniform samplerCube sky;uniform sampler2D scr;uniform mat3 skyRot;varying vec2 vP;
+// what lies behind along a (bent) direction: the sky panorama up close, or the rendered galaxy itself from far out
+vec3 back(vec3 d){
+  d=d*rot; // back from the hole's own frame to the world
+  if(mode<.5)return textureCube(sky,skyRot*d).rgb*skyB;
+  vec4 c=vp*vec4(d,0.);if(c.w<=0.)return vec3(0.);
+  return texture2D(scr,clamp(c.xy/c.w*.5+.5,.001,.999)).rgb;
+}
 float hash(vec3 p){p=fract(p*.3183099+vec3(.1,.2,.3));p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float noise(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
   return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),
@@ -561,11 +568,11 @@ vec3 bend(vec3 p,vec3 d){ // the small bending still to come on the straight run
   return normalize(d-o/b*(1.-s/sqrt(s*s+b*b))/b);
 }
 void main(){
-  vec4 pc=proj*vec4(vP,1.,1.);vec3 d=normalize((view*vec4(pc.xyz/pc.w,0.)).xyz),p=cam;
+  vec4 pc=proj*vec4(vP,1.,1.);vec3 d=rot*normalize((view*vec4(pc.xyz/pc.w,0.)).xyz),p=cam;
   float pd=dot(p,d);
   if(dot(p,p)>R0*R0){
     float disc=pd*pd-dot(p,p)+R0*R0;
-    if(pd>0.||disc<0.){gl_FragColor=vec4(textureCube(sky,skyRot*bend(p,d)).rgb*skyB,1.);return;}
+    if(pd>0.||disc<0.){gl_FragColor=vec4(back(bend(p,d)),1.);return;}
     vec3 o=p-pd*d;float b=length(o);p+=d*(-pd-sqrt(disc));float s=dot(p,d);
     d=normalize(d-o/b*(s/sqrt(s*s+b*b)-pd/sqrt(pd*pd+b*b))/b); // bending picked up on the way in
   }
@@ -581,11 +588,22 @@ void main(){
     if(p.y*pn.y<0.){vec4 e=disk(mix(p,pn,p.y/(p.y-pn.y)),v);acc+=(1.-A)*e.rgb;A+=(1.-A)*e.a;}
     p=pn;v=vn;
   }
-  vec3 bg=out_?textureCube(sky,skyRot*bend(p,normalize(v))).rgb*skyB:vec3(0.);
-  gl_FragColor=vec4(1.-exp(-acc*1.5)+(1.-A)*bg,1.);
+  vec3 bg=out_?back(bend(p,normalize(v))):vec3(0.);
+  if(mode>.5){float k=smoothstep(cav*.05,cav,length(cross(cam,d)));bg*=k*k;} // from far out, the core's glare fades into a dark cavity round the hole
+  vec3 col=1.-exp(-acc*1.5)+(1.-A)*bg;
+  if(mode>.5)col=mix(texture2D(scr,vP*.5+.5).rgb,col,fade);
+  gl_FragColor=vec4(col,1.);
 }`});
 const bhQuad=new THREE.Mesh(new THREE.PlaneGeometry(2,2),bhMat);bhQuad.frustumCulled=false;bhQuad.renderOrder=-1.5;bhQuad.visible=false;scene.add(bhQuad);
-let bhWas=false;
+// from the galaxy view the scene is drawn to a texture first, and this pass bends it around the hole
+const bhScene=new THREE.Scene(),bhFarQuad=new THREE.Mesh(bhQuad.geometry,bhMat);bhFarQuad.frustumCulled=false;bhScene.add(bhFarQuad);
+const bhRT=new THREE.WebGLRenderTarget(1,1,{depthBuffer:true}),bhSize=new THREE.Vector2();
+let bhWas=false,bhFar=false;
+// the disk is tilted so the usual galaxy view (and the visit) sees it from 7° above its plane, the classic look
+const BH_TH=.9,BH_PH=.85;{const c=new THREE.Vector3(Math.sin(BH_PH)*Math.cos(BH_TH),Math.cos(BH_PH),Math.sin(BH_PH)*Math.sin(BH_TH)),
+  u=new THREE.Vector3(0,1,0).addScaledVector(c,-c.y).normalize(),n=u.multiplyScalar(Math.cos(7*D2R)).addScaledVector(c,Math.sin(7*D2R)).normalize(),
+  x=new THREE.Vector3().crossVectors(n,c).normalize(),z=new THREE.Vector3().crossVectors(x,n);
+  BH.rot=new THREE.Matrix3().set(x.x,x.y,x.z,n.x,n.y,n.z,z.x,z.y,z.z);} // world to the hole's frame, disk in its x-z plane
 
 /* ---------- beyond the universe: the loop ---------- */
 // Past the cosmic web: other bubble universes, all inside one proton, inside a carbon nucleus, inside an atom
@@ -856,7 +874,7 @@ const target=new THREE.Vector3();
 function focusOn(b){
   const np=b?b.pos:new THREE.Vector3();
   cam.off.copy(target).sub(np);cam.focus=b;
-  if(b===BH){cam.gR=30;cam.gph=1.46;}else if(b){cam.gR=b.id==='sun'?70:Math.max(b.r*(b.id==='saturn'?8:6.2),5);cam.gph=1.12;if(b.id!=='sun'){let t=Math.atan2(-b.pos.z,-b.pos.x)+.75;t+=Math.round((cam.th-t)/6.2832)*6.2832;cam.gth=t;}}else{cam.gR=420;cam.gph=1.02;}
+  if(b===BH){cam.gR=30;cam.gph=BH_PH;cam.gth=BH_TH+Math.round((cam.th-BH_TH)/6.2832)*6.2832;}else if(b){cam.gR=b.id==='sun'?70:Math.max(b.r*(b.id==='saturn'?8:6.2),5);cam.gph=1.12;if(b.id!=='sun'){let t=Math.atan2(-b.pos.z,-b.pos.x)+.75;t+=Math.round((cam.th-t)/6.2832)*6.2832;cam.gth=t;}}else{cam.gR=420;cam.gph=1.02;}
   document.body.classList.toggle('open',!!b);
   cam.gshift=b&&innerWidth>640?200:0;
   [...nav.children].forEach(n=>n.classList&&n.classList.toggle('on',!!b&&n.dataset.id===b.id));
@@ -1073,9 +1091,14 @@ function frame(now){
   stars.position.copy(camera.position);stars.scale.setScalar(camera.far*.4/2600);
   skyMats.forEach(m=>m.color.setScalar(m.userData.ok?.4*fs:0));stars.material.opacity=.75*fs;
   // near the galactic centre the ray-traced black hole takes over the whole sky, so the flat sky and stars step aside
-  const bhOn=camera.position.distanceTo(galC)<5000;bhQuad.visible=bhOn;
-  if(bhOn){sky.visible=stars.visible=false;camera.updateMatrixWorld();const u=bhMat.uniforms;u.cam.value.copy(camera.position).sub(galC);
-    u.view.value.copy(camera.matrixWorld);u.proj.value.copy(camera.projectionMatrixInverse);u.time.value=now/1000;u.skyB.value=.4*fs;}
+  // up close it takes over the whole sky; from the galaxy view it sits in the core, drawn big enough to see (as if from 45 Schwarzschild radii
+  // when zoomed in on the core, fading out as the whole galaxy comes into view), bending the stars behind it
+  const dBH=camera.position.distanceTo(galC),bhNear=dBH<5000||cam.focus===BH,fFar=fm*(1-ss(5.45,5.75,L));bhFar=!bhNear&&fFar>.01;
+  const bhOn=bhNear||bhFar;bhQuad.visible=bhNear;
+  if(bhOn){if(bhNear)sky.visible=stars.visible=false;camera.updateMatrixWorld();const u=bhMat.uniforms,kS=Math.max(1,dBH/(45*Math.pow(10,2*ss(5.2,6,L))));
+    u.cam.value.copy(camera.position).sub(galC).divideScalar(kS).applyMatrix3(BH.rot);u.rot.value.copy(BH.rot);u.view.value.copy(camera.matrixWorld);u.proj.value.copy(camera.projectionMatrixInverse);
+    u.vp.value.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse);u.time.value=now/1000;u.skyB.value=.4*fs;
+    u.mode.value=bhFar?1:0;u.cav.value=75-57*ss(5.2,6,L);u.fade.value=bhFar?fFar:1;u.scr.value=bhRT.texture;}
   if(bhOn!==bhWas){bhWas=bhOn;renderer.setPixelRatio(Math.min(devicePixelRatio||1,bhOn?1.25:2));resize();} // a lighter load while tracing rays
   milky.visible=fm>.01;const dim=r=>Math.max(.03,Math.min(1,3.2*r/cam.R));milky.material.opacity=fm*dim(RG);
   others.forEach(g=>{g.visible=fo>.01;g.material.opacity=fo*dim(g.userData.R);g.userData.halo.material.opacity=.22*fo;});
@@ -1087,7 +1110,9 @@ function frame(now){
   if(L>3.5&&!cam.focus)tip.classList.remove('show');
   words(L);
   live(false);
-  renderer.render(scene,camera);
+  if(bhFar){renderer.getDrawingBufferSize(bhSize);if(bhRT.width!==bhSize.x||bhRT.height!==bhSize.y)bhRT.setSize(bhSize.x,bhSize.y);
+    renderer.setRenderTarget(bhRT);renderer.render(scene,camera);renderer.setRenderTarget(null);renderer.render(bhScene,camera);}
+  else renderer.render(scene,camera);
   requestAnimationFrame(frame);
 }
 setTimeout(()=>{
